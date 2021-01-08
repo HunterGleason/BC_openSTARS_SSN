@@ -1,0 +1,1 @@
+The output of the 1_prepairAttributes.R will be in this directory. If using a Docker, ClimateBC must be run externally, and the required files copied here.

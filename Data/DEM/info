@@ -1,0 +1,1 @@
+Place digital elevation model as a .tif file in this directory, it must cover the extent of the study watershed, with a buffer of at least 1000 meters.

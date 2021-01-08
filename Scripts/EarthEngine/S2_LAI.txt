@@ -1,0 +1,182 @@
+//Or provide own FeatureCollection 
+var table = ee.FeatureCollection("users/huntergdesiertonieve/BowronExtent");
+
+
+var aoi = table.geometry();
+
+
+/**
+ * Function to caclulate LAI using NNET from S2
+ * @param {ee.Image} image Sentinel-2 image
+ * @return {ee.Image} cloud masked LAI Sentinel-2 image
+ */
+function Calc_S2_LAI(img) {
+  var qa = img.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+      
+  //Normalize S2 Bands using provided Min-Max Coeff.  
+  var b03_norm = img.expression('(2*((green/10000)-0)/(0.253061520471542-0))-1',
+  {
+    green: img.select(['B3'])
+  });
+  
+  var b04_norm = img.expression('(2*((red/10000)-0)/(0.290393577911328-0))-1',
+  {
+    red: img.select(['B4'])
+  });
+  
+  var b05_norm = img.expression('(2*((red1/10000)-0)/(0.305398915248555-0))-1',
+  {
+    red1: img.select(['B5'])
+  });
+  
+  var b06_norm = img.expression('(2*((red2/10000)-0.006637972542253)/(0.608900395797889-0.006637972542253))-1',
+  {
+    red2: img.select(['B6'])
+  });
+  
+  var b07_norm = img.expression('(2*((red3/10000)-0.013972727018939)/(0.753827384322927-0.013972727018939))-1',
+  {
+    red3: img.select(['B7'])
+  });
+  
+  var b8a_norm = img.expression('(2*((red4/10000)-0.026690138082061)/(0.782011770669178-0.026690138082061))-1',
+  {
+    red4: img.select(['B8A'])
+  });
+  
+  var b11_norm = img.expression('(2*((swir1/10000)-0.016388074192258)/(0.493761397883092-0.016388074192258))-1',
+  {
+    swir1: img.select(['B11'])
+  });
+  
+  var b12_norm = img.expression('(2*((swir2/10000)-0)/(0.493025984460231-0))-1',
+  {
+    swir2: img.select(['B12'])
+  });
+  
+  
+  //Get view /solar geometry params and normalize using provided coeff.  
+  var viewZenithMean = (ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B3'))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B4')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B5')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B6')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B7')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B8A')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B11')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_ZENITH_ANGLE_B12'))))
+    .divide(ee.Number(8));
+  
+  viewZenithMean = (ee.Number(3.14159265359/180).multiply(viewZenithMean)).cos();
+  
+  var viewZen_norm = (ee.Number(2).multiply(viewZenithMean.subtract(ee.Number(0.918595400582046))).divide(ee.Number(1).subtract(ee.Number(0.918595400582046))))
+    .subtract(ee.Number(1));
+  
+  var sunZenithAngle = (ee.Number(img.get('MEAN_SOLAR_ZENITH_ANGLE')).multiply(ee.Number(3.14159265359/180))).cos();
+  
+  var sunZen_norm = (ee.Number(2).multiply(sunZenithAngle.subtract(ee.Number(0.342022871159208))).divide(ee.Number(0.936206429175402).subtract(ee.Number(0.342022871159208))))
+    .subtract(ee.Number(1));
+    
+  var viewAzimuthMean = (ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B3'))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B4')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B5')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B6')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B7')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B8A')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B11')))
+    .add(ee.Number(img.get('MEAN_INCIDENCE_AZIMUTH_ANGLE_B12'))))
+    .divide(ee.Number(8));
+  
+  viewAzimuthMean = viewAzimuthMean.multiply(ee.Number(3.14159265359/180)).cos();
+  
+  var sunAzimuthAngle = ee.Number(img.get('MEAN_SOLAR_AZIMUTH_ANGLE')).multiply(ee.Number(3.14159265359/180)).cos();
+  
+  var relAzim_norm = (sunAzimuthAngle.subtract(viewAzimuthMean)).cos();
+  
+  relAzim_norm = (ee.Number(2).multiply(relAzim_norm.subtract(ee.Number(-1))).divide(ee.Number(1).subtract(ee.Number(-1)))).subtract(ee.Number(1));
+  
+  //Create a normalized image, rename bands, mask clouds, clip to geom.
+  var norm_img = b03_norm
+    .addBands(b04_norm)
+    .addBands(b05_norm)
+    .addBands(b06_norm)
+    .addBands(b07_norm)
+    .addBands(b8a_norm)
+    .addBands(b11_norm)
+    .addBands(b12_norm)
+    .addBands(ee.Image(viewZen_norm))
+    .addBands(ee.Image(sunZen_norm))
+    .addBands(ee.Image(relAzim_norm));
+  
+  var orig_names=["constant","constant_1","constant_2","constant_3","constant_4","constant_5","constant_6","constant_7","constant_8","constant_9","constant_10"];
+  var new_names=["B3","B4","B5","B6","B7","B8A","B11","B12","viewZen","sunZen","relAzim"];
+  
+  norm_img = norm_img.updateMask(mask).float().select(orig_names,new_names);
+  
+  //Band map
+  var band_map = {B3:norm_img.select(['B3']),B4:norm_img.select(['B4']),B5:norm_img.select(['B5']),B6:norm_img.select(['B6']),B7:norm_img.select(['B7']),B8A:norm_img.select(['B8A']),B11:norm_img.select(['B11']),B12:norm_img.select(['B12']),viewZen:norm_img.select(['viewZen']),sunZen:norm_img.select(['sunZen']),relAzim:norm_img.select(['relAzim'])};
+  
+  //Calculate each neural layer using provided weights and bias
+  var n1 = norm_img.expression('4.96238030555279+(-0.023406878966470*B3)+(0.921655164636366*B4)+(0.135576544080099*B5)+(-1.938331472397950*B6)+(-3.342495816122680*B7)+(0.902277648009576*B8A)+(0.205363538258614*B11)+(-0.040607844721716*B12)+(-0.083196409727092*viewZen)+(0.260029270773809*sunZen)+(0.284761567218845*relAzim)',band_map).tanh();
+  var n2 = norm_img.expression('1.416008443981500+(-0.132555480856684*B3)+(-0.139574837333540*B4)+(-1.014606016898920*B5)+(-1.330890038649270*B6)+(0.031730624503341*B7)+(-1.433583541317050*B8A)+(-0.959637898574699*B11)+(1.133115706551000*B12)+(0.216603876541632*viewZen)+(0.410652303762839*sunZen)+(0.064760155543506*relAzim)',band_map).tanh();
+  var n3 = norm_img.expression('1.075897047213310+(0.086015977724868*B3)+(0.616648776881434*B4)+(0.678003876446556*B5)+(0.141102398644968*B6)+(-0.096682206883546*B7)+(-1.128832638862200*B8A)+(0.302189102741375*B11)+(0.434494937299725*B12)+(-0.021903699490589*viewZen)+(-0.228492476802263*sunZen)+(-0.039460537589826*relAzim)',band_map).tanh();
+  var n4 = norm_img.expression('1.533988264655420+(-0.109366593670404*B3)+(-0.071046262972729*B4)+(0.064582411478320*B5)+(2.906325236823160*B6)+(-0.673873108979163*B7)+(-3.838051868280840*B8A)+(1.695979344531530*B11)+(0.046950296081713*B12)+(-0.049709652688365*viewZen)+(0.021829545430994*sunZen)+(0.057483827104091*relAzim)',band_map).tanh();
+  var n5 = norm_img.expression('3.024115930757230+(-0.089939416159969*B3)+(0.175395483106147*B4)+(-0.081847329172620*B5)+(2.219895367487790*B6)+(1.713873975136850*B7)+(0.713069186099534*B8A)+(0.138970813499201*B11)+(-0.060771761518025*B12)+(0.124263341255473*viewZen)+(0.210086140404351*sunZen)+(-0.183878138700341*relAzim)',band_map).tanh();
+  
+  //Rename bands
+  orig_names=["constant","constant_1","constant_2","constant_3","constant_4"];
+  new_names=["n1","n2","n3","n4","n5"];
+  
+  //Create a neural image layer, rename
+  var layer_img = n1.addBands(n2).addBands(n3).addBands(n4).addBands(n5).select(orig_names,new_names);
+  
+  //New band map
+  band_map = {n1:layer_img.select(['n1']),n2:layer_img.select(['n2']),n3:layer_img.select(['n3']),n4:layer_img.select(['n4']),n5:layer_img.select(['n5'])};
+  
+  //Calculate output layer using provided weights and bias 
+  var layer2= layer_img.expression('1.096963107077220+(-1.500135489728730*n1)+(-0.096283269121503*n2)+(-0.194935930577094*n3)+(-0.352305895755591*n4)+(0.075107415847473*n5)',band_map);
+  
+  //Determine LAI layer from de-normalized output using provided Min-Max
+  var LAI = (ee.Image(0.5).multiply(layer2.add(ee.Image(1.0)).multiply(ee.Image(14.4675094548151).subtract(ee.Image(0.000319182538301))))).add(ee.Image(0.000319182538301)).clip(aoi);
+  
+  //Return the LAI image 
+  return(LAI);
+}
+
+//IF year is <=2018 cannot use S2 surface reflectance, use TOA, reccomend bias correction 
+var YEAR = ee.Number(2020);
+
+var start_date = ee.Date(ee.String(YEAR.toInt()).cat('-08-01'));
+var end_date = ee.Date(ee.String(YEAR.toInt()).cat('-09-01'));
+
+var file_name = ee.String(YEAR.toInt()).cat('_S2_LAI').getInfo();
+
+
+
+Map.addLayer(ee.ImageCollection('COPERNICUS/S2_SR').filterDate(start_date,end_date).filterBounds(aoi),{});
+
+//Compute LAI collection 
+var LAI_Col = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filterDate(start_date,end_date)
+                  .map(Calc_S2_LAI);
+
+var LAI = LAI_Col.reduce(ee.Reducer.median());
+
+Map.addLayer(LAI,{min:0,max:5});
+Map.addLayer(aoi,{});
+
+//var scl = ee.ImageCollection('COPERNICUS/S2_SR').first().select('B3').projection().nominalScale().getInfo();
+//var s2_crs=ee.ImageCollection('COPERNICUS/S2_SR').first().select('B3').projection().crs().getInfo()
+//var bow_crs= table.geometry().projection().crs().getInfo();
+
+
+
+Export.image.toDrive({image:LAI,description:file_name,scale:25,crs:'EPSG:3005',maxPixels:10000000000000,region:aoi,skipEmptyTiles:true});
+

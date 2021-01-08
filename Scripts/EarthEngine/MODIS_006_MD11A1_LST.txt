@@ -1,0 +1,74 @@
+//###########
+//Global Vars
+//###########
+
+//Define geometry as geom 
+var geom = table.geometry();
+
+//Define the year to process
+var year = ee.Number(2018);
+
+//###########
+//Mean M*D11A1 Land Surface Temp. (LST)
+//###########
+
+//Set as Aug 1
+var start_date = ee.Date(
+  ee.String(year.int()).cat(
+    '-08-01'));
+//Set as Sep 1  
+var end_date = ee.Date(
+  ee.String(year.int()).cat(
+    '-09-01'));
+
+//Filter and merge the M*D11A1 image collection 
+var dataset = ee.ImageCollection(
+  'MODIS/006/MOD11A1').merge(
+    'MODIS/006/MYD11A1').filter(
+      ee.Filter.date(start_date, end_date));
+
+//Select the LST band 
+var landSurfaceTemperature = dataset.select(
+  'LST_Day_1km');
+  
+//###########
+//Add to Map 
+//###########  
+
+//Define viz params
+var landSurfaceTemperatureVis = {
+  min: 13000.0,
+  max: 16500.0,
+  palette: [
+    '040274', '040281', '0502a3', '0502b8', '0502ce', '0502e6',
+    '0602ff', '235cb1', '307ef3', '269db1', '30c8e2', '32d3ef',
+    '3be285', '3ff38f', '86e26f', '3ae237', 'b5e22e', 'd6e21f',
+    'fff705', 'ffd611', 'ffb613', 'ff8b13', 'ff6e08', 'ff500d',
+    'ff0000', 'de0101', 'c21301', 'a71001', '911003'
+  ],
+};
+
+//Compute mean Aug. LST, clip to geometry AOI.
+landSurfaceTemperature = landSurfaceTemperature.mean().clip(
+  geom.buffer(5000));
+
+//Add result to map using viz params 
+Map.addLayer(
+    landSurfaceTemperature, landSurfaceTemperatureVis,
+    'Land Surface Temperature');
+
+
+//###########
+//Export mean Aug. LST to Google Drive 
+//########### 
+
+//Output description 
+var desc = ee.String(
+  year.int()).cat(
+    "_MODIS_LST").getInfo();
+
+//Use scale of 500 m
+var scl = 500;
+
+//Export mean LST image to Google Drive 
+Export.image.toDrive({image:landSurfaceTemperature, description:desc,region:geom, scale:scl,crs:'EPSG:3005'});

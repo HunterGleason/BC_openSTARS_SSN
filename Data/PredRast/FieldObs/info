@@ -1,0 +1,1 @@
+If the user is providing their own gridded monthly temperature and precipitation fields they must be copied into this directory, and named field_temp.tif, and field_prcp.tif. They must cover the same extent as the DEM, and have a BC Albers projection. 

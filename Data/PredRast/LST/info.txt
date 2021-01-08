@@ -1,0 +1,1 @@
+This is a folder for remotly sensed land surface temperature (LST) geotiffs. 
