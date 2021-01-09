@@ -17,9 +17,15 @@ month = strtoi(readline(prompt="Enter month corresponding to stream site data as
 
 #Prompt user for paths to study data, will be organized for processing with 'openSTARS' package. 
 dem_pth<-readline(prompt="Enter path to digital elevation model encompassing study area, recommended ~1000 m buffer: \n")
+# C:/Data/SSN/aug2020_mat_topos/parsnip.tif
 sites_pth<-readline(prompt = "Enter path to vector layer with stream site observations, e.g., sites_2018.gpkg: \n")
-roads_pth<-readline(prompt="Enter path of roads vector layer, or leave blank to use digital-road-atlas-dra-master-partially-attributed-roads: \n")
+# C:/Data/SSN/aug2020_mat_topos/aug2020_wt_monthly_average.gpkg
 stream_pth<-readline(prompt="Enter path of a vector stream layer, or leave blank to download the BC Freshwater Atlas Layer: \n")
+# C:/Data/SSN/aug2020_mat_topos/parsnip_streams.gpkg
+temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
+# C:/Data/SSN/aug2020_mat_topos/air_aug_monthly_average0m.augmean [Universal Kriging].tif
+
+roads_pth<-readline(prompt="Enter path of roads vector layer, or leave blank to use digital-road-atlas-dra-master-partially-attributed-roads: \n")
 lai_pth<-readline(prompt="Enter path of effective leaf area index (LAI) raster layer (see Google Earth Engine script): \n")
 LST_pth <- readline(prompt="Enter path of remotely sensed land surface temperature raster layer (see Google Earth Engine script): \n")
 MODIS_SDoff_pth <- readline(prompt="Enter path of MODIS SDoff raster layer: \n")
@@ -400,6 +406,8 @@ if(climate_source!='NONE')
 #List likley stream layers, and pull desired layer, or...
 #poss_strm<-bcdata::bcdc_list()
 #poss_strm[stringr::str_detect(poss_strm,"stream")]
+
+
 
 print("Downloading Freshwater Atlas Stream network for WGC ...")
 if(stream_pth=="")
