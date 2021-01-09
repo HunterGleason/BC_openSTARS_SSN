@@ -6,6 +6,7 @@ library(gdalUtils)
 library(bcdata)
 library(sf)
 library(readr)
+library(stars)
 
 ####Declare Global Vars (REQUIRED)####
 
@@ -16,23 +17,36 @@ year = strtoi(readline(prompt="Enter year corresponding to stream site data: \n"
 month = strtoi(readline(prompt="Enter month corresponding to stream site data as integer (1-12): \n"))
 
 #Prompt user for paths to study data, will be organized for processing with 'openSTARS' package. 
-dem_pth<-readline(prompt="Enter path to digital elevation model encompassing study area, recommended ~1000 m buffer: \n")
-# C:/Data/SSN/aug2020_mat_topos/parsnip.tif
-sites_pth<-readline(prompt = "Enter path to vector layer with stream site observations, e.g., sites_2018.gpkg: \n")
-# C:/Data/SSN/aug2020_mat_topos/aug2020_wt_monthly_average.gpkg
-stream_pth<-readline(prompt="Enter path of a vector stream layer, or leave blank to download the BC Freshwater Atlas Layer: \n")
-# C:/Data/SSN/aug2020_mat_topos/parsnip_streams.gpkg
-temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
-# C:/Data/SSN/aug2020_mat_topos/air_aug_monthly_average0m.augmean [Universal Kriging].tif
 
-roads_pth<-readline(prompt="Enter path of roads vector layer, or leave blank to use digital-road-atlas-dra-master-partially-attributed-roads: \n")
-lai_pth<-readline(prompt="Enter path of effective leaf area index (LAI) raster layer (see Google Earth Engine script): \n")
-LST_pth <- readline(prompt="Enter path of remotely sensed land surface temperature raster layer (see Google Earth Engine script): \n")
-MODIS_SDoff_pth <- readline(prompt="Enter path of MODIS SDoff raster layer: \n")
+#dem_pth<-readline(prompt="Enter path to digital elevation model encompassing study area, recommended ~1000 m buffer: \n")
+dem_pth <- "C:/Data/SSN/aug2020_mat_topos/parsnip.tif"
+#sites_pth<-readline(prompt = "Enter path to vector layer with stream site observations, e.g., sites_2018.gpkg: \n")
+sites_pth <- "C:/Data/SSN/aug2020_mat_topos/aug2020_wt_monthly_average.gpkg"
+#stream_pth<-readline(prompt="Enter path of a vector stream layer, or leave blank to download the BC Freshwater Atlas Layer: \n")
+stream_pth <- "C:/Data/SSN/aug2020_mat_topos/parsnip_streams.gpkg"
+#temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
+temp_pth <- "C:/Data/SSN/aug2020_mat_topos/air_aug_monthly_average0m.augmean [Universal Kriging].tif"
+
+# Paths to data not used in FWCP Grayling
+# roads_pth<-readline(prompt="Enter path of roads vector layer, or leave blank to use digital-road-atlas-dra-master-partially-attributed-roads: \n")
+# lai_pth<-readline(prompt="Enter path of effective leaf area index (LAI) raster layer (see Google Earth Engine script): \n")
+# LST_pth <- readline(prompt="Enter path of remotely sensed land surface temperature raster layer (see Google Earth Engine script): \n")
+# MODIS_SDoff_pth <- readline(prompt="Enter path of MODIS SDoff raster layer: \n")
+
+#### Create directories in which to store preppred attribute layers ####
+dir.create("C:/Code/BC_openSTARS_SSN/Data")
+dir.create("C:/Code/BC_openSTARS_SSN/Data/DEM")
+dir.create("C:/Code/BC_openSTARS_SSN/Data/Sites")
+dir.create("C:/Code/BC_openSTARS_SSN/Data/FieldObs")
+dir.create("C:/Code/BC_openSTARS_SSN/Data/Streams")
+dir.create("C:/Code/BC_openSTARS_SSN/Data/PredVect")
 
 
 #Provide study extent -> vector (length=4; order= xmin, xmax, ymin, ymax)
-e<-as.double(unlist(strsplit(readline(prompt="Enter coordinates of study extent as -> xmin,xmax,ymin,ymax, must be EPSG:3005 coordinates: "),",")))
+dem <- raster("C:/Data/SSN/aug2020_mat_topos/parsnip.tif")
+crs(dem)
+e <- extent(dem)
+# e<-as.double(unlist(strsplit(readline(prompt="Enter coordinates of study extent as -> xmin,xmax,ymin,ymax, must be EPSG:3005 coordinates: "),",")))
 
 xmin<-e[1]
 xmax<-e[2]
@@ -53,401 +67,453 @@ bcalb<-"+proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=
 climate_source<-readline(prompt="Please enter the type of climate data to be used, enter one of: 'ClimateBC', 'Daymet' or 'NONE' if provding own layers : ")
 
 #If providing climate data, prompt for path
-if(climate_source=='NONE')
-{
-  temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
-  prcp_pth<-readline(prompt="Please enter the path to gridded precipitation data: ")
-}
+## provided above
+# if(climate_source=='NONE')
+# {
+#   temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
+#   prcp_pth<-readline(prompt="Please enter the path to gridded precipitation data: ")
+# }
 
 #Prompt user to download RCP Climate data. 
 calc_rcp<-readline(prompt="Please enter if you wish to also calculate RCP monthly climate metrics, enter TRUE or FALSE: ")
 
 
 ####Load and crop primary DEM####
+dem <- raster::raster(dem_pth)
+raster::compareCRS(raster::crs(dem),bcalb)==F
+raster::writeRaster(dem, filename = 'Data/DEM/dem.tif',overwrite=T)
 
-#Load DEM from dem_pth using raster package, either from local source, or DataBC
-print("Loading and cropping DEM ...")
-if(dem_pth!="")
-{
-  dem <- raster::raster(dem_pth)
-}else{
-  #Waiting for CDED package 
-  #dem <- cded_get(e_sf)
-}
+# #Load DEM from dem_pth using raster package, either from local source, or DataBC
+# print("Loading and cropping DEM ...")
+# if(dem_pth!="")
+# {
+#   dem <- raster::raster(dem_pth)
+# }else{
+#   #Waiting for CDED package 
+#   #dem <- cded_get(e_sf)
+# }
+# 
+# #Project DEM if necessary
+# if(raster::compareCRS(raster::crs(dem),bcalb)==F)
+# {
+#   dem<-projectRaster(dem,crs=bcalb)
+# }
+# 
+# #Crop to aoi extent if necessary
+# if(extent(dem)!=extent(e))
+# {
+#   aoi_dem<-raster::crop(dem,e)
+# }
+# 
+# #Write DEM to openSTARS DEM data directory 
+# raster::writeRaster(aoi_dem, filename = 'Data/DEM/dem.tif',overwrite=T)
+# 
+# print("DEM wrote to Data/DEM/dem.tif")
+# 
 
-#Project DEM if necessary
-if(raster::compareCRS(raster::crs(dem),bcalb)==F)
-{
-  dem<-projectRaster(dem,crs=bcalb)
-}
-
-#Crop to aoi extent if necessary
-if(extent(dem)!=extent(e))
-{
-  aoi_dem<-raster::crop(dem,e)
-}
-
-#Write DEM to openSTARS DEM data directory 
-raster::writeRaster(aoi_dem, filename = 'Data/DEM/dem.tif',overwrite=T)
-
-print("DEM wrote to Data/DEM/dem.tif")
-
-
-####Load and write stream site observations####
+####Load and write stream site observations ####
 
 sites<-st_read(sites_pth)
-
-#Reproject if needed 
-if(st_crs(sites)!=st_crs(bcalb))
-{
-  sites<-sf::st_transform(sites,bcalb)
-}
-  
-
+st_crs(sites)!=st_crs(bcalb)
 sf::write_sf(sites,"Data/Sites/sites.gpkg",overwrite=T)
 
-print("Stream site data wrote to Data/Sites/sites.gpkg")
+#Reproject if needed 
+# if(st_crs(sites)!=st_crs(bcalb))
+# {
+#   sites<-sf::st_transform(sites,bcalb)
+# }
+#   
+# 
+# sf::write_sf(sites,"Data/Sites/sites.gpkg",overwrite=T)
+# 
+# print("Stream site data wrote to Data/Sites/sites.gpkg")
 
 ####Get climateBC or Daymet Data####
 
-#If not providing climate data 
-if(climate_source!='NONE')
-{
-  #If user chose to use ClimateBC data 
-  if(climate_source=="ClimateBC")
-  {
-    print("Converting DEM to ClimateBC Format at 600 m resolution.")
-    #Need to resample DEM to 600 m resolution 
-    resam_x<-(e[2]-e[1])/600
-    resam_y<-(e[4]-e[3])/600
-    resam_<-raster(nrow=resam_y, ncol=resam_x)
-    extent(resam_)<-extent(aoi_dem)
-    crs(resam_)<-crs(aoi_dem)
-    
-    #Project DEM to WGS84
-    bcclim_dem<-projectRaster(resample(aoi_dem,resam_,method='bilinear'), crs = wgs84)
-    #plot(bcclim_dem)
-    
-    #Get DEM as data frame with XY
-    bcclim_dem<-raster::as.data.frame(bcclim_dem,xy=T,na.rm=T,centroids=T)
-    
-    #Format for input into ClimateBC windows tool as CSV
-    lat<-bcclim_dem$y
-    lon<-bcclim_dem$x
-    el<-bcclim_dem[,3]
-    
-    #As YXZ
-    bcclim_dem<-raster::as.data.frame(cbind(lat,lon,el))
-    
-    id<-paste(rep('site',length(bcclim_dem$lat)),c(1:length(bcclim_dem$lat)),sep = "")
-    id<-cbind(id,rep('region1',length(bcclim_dem$lat)))
-    
-    bcclim_dem<-base::as.data.frame(cbind(id,bcclim_dem))
-    
-    #Specified by ClimateBC Tool 
-    colnames(bcclim_dem)<-c('ID1','ID2','lat','long','el')
-    
-    #Convert elevation to integer 
-    bcclim_dem$el<-round(bcclim_dem$el)
-    
-    #Write formatted CSV to 'bcclim_dem.csv'. !!User must now run this file in the ClimateBC tool for appropriate data and time period before continuing!!
-    write_csv(bcclim_dem,'Data/PredRast/ClimateBC/CSVs/bcclim_dem.csv')
-    
-    print("Wrote DEM to 'Data/PredRast/ClimateBC/CSVs/bcclim_dem.csv'. (1) Open and file in EXCEL and save as CSV, do not make any edits (2) then run as input in ClimateBC tool with appropriate fields for year and month and desired dataset, (3) assure ClimateBC output CSV in 'Data/PredRast/ClimateBC/CSVs/' directory. (4) If running a Climate scenerio make sure this CSV is in the 'Data/PredRast/ClimateBC/CSVs/' directory as well.")
-    
-    hasRun<-readline(prompt='Have you run the ClimateBC tool and put output(s) in the "Data/PredRast/ClimateBC/CSVs/" direcotry, enter TRUE or FALSE?')
-    
-    
-    
-    #Check if user has run CliamteBC tool and put output CSV in correct directory,
-    if(hasRun=='TRUE')
-    {
-      climBCname<-readline(prompt='Please provide name of ClimateBC output CSV, e.g., bcclim_dem_Year_2018M.csv:')
-      if(calc_rcp=='TRUE')
-      {
-        climBCRCP<- readline(prompt='Please provide name of ClimateBC scenerio output CSV, e.g., bcclim_dem_CanESM2_rcp45M.csv:')
-      }
-      
-    }else
-    {
-      print('Run ClimateBC tool and put output CSV into "Data/PredRast/ClimateBC/CSVs/"')
-      climBCname<-readline(prompt='Please provide name of ClimateBC output CSV, e.g., bcclim_dem_Year_2018M.csv:')
-      if(calc_rcp=='TRUE')
-      {
-        climBCRCP<- readline(prompt='Please provide name of ClimateBC scenerio output CSV, e.g., bcclim_dem_CanESM2_rcp45M.csv:')
-      }
-    }
-    
-    
-    #Read in ClimateBC CSV
-    print("Reading in ClimateBC output data ...")
-    clim_bc_data<-read_csv(paste('Data/PredRast/ClimateBC/CSVs/',climBCname,sep=""))
-    
-    #Get average temperature and total precipitation for specified month, convert to raster, and write to PredRast directory 
-    print("Retreiving temperature and precipitation data for specified month ...")
-    if(month<10)
-    {
-      tmx_stamp<-paste('Tmax0',month,sep="")
-      tmn_stamp<-paste('Tmin0',month,sep="")
-      tav_stamp<-paste('Tave0',month,sep="")
-      p_stamp<-paste('PPT0',month,sep="")
-    }else{
-      tmx_stamp<-paste('Tmax',month,sep="")
-      tmn_stamp<-paste('Tmin',month,sep="")
-      tav_stamp<-paste('Tave',month,sep="")
-      p_stamp<-t_stamp<-paste('PPT',month,sep="")
-    }
-    
-    #Get temperature data, covert to raster, reproject and write to Data directory 
-    print("Writing max temperature data to 'Data/PredRast/ClimateBC/tmax.tif'")
-    tmx<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmx_stamp)],crs=wgs84)
-    tmx_p<-projectRaster(tmx, crs = bcalb)
-    raster::writeRaster(tmx_p, filename = 'Data/PredRast/ClimateBC/tmax.tif')
-    
-    print("Writing min temperature data to 'Data/PredRast/ClimateBC/tmin.tif'")
-    tmn<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmn_stamp)],crs=wgs84)
-    tmn_p<-projectRaster(tmn, crs = bcalb)
-    raster::writeRaster(tmn_p, filename = 'Data/PredRast/ClimateBC/tmin.tif')
-    
-    print("Writing mean temperature data to 'Data/PredRast/ClimateBC/tave.tif'")
-    tav<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tav_stamp)],crs=wgs84)
-    tav_p<-projectRaster(tav, crs = bcalb)
-    raster::writeRaster(tav_p, filename = 'Data/PredRast/ClimateBC/tave.tif')
-    
-    #Get total precipitation data, covert to raster, reproject and write to Data directory 
-    print("Writing total precipitation data to 'Data/PredRast/ClimateBC/ppt.tif'")
-    ppt<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',p_stamp)],crs=wgs84)
-    ppt_p<-projectRaster(ppt, crs = bcalb)
-    raster::writeRaster(ppt_p,filename = 'Data/PredRast/ClimateBC/ppt.tif')
-    
-    #Plot Results
-    #plot(stack(resample(aoi_dem,tmn_p,method='bilinear'),tmn_p,tmx_p,tav_p,ppt_p))
-    
-    
-    print("Finshed getting ClimateBC data.")
-    
-    
-    if(calc_rcp==TRUE)
-    { 
-      #Read in ClimateBC CSV
-      print("Reading in ClimateBC output data ...")
-      clim_bc_data<-read_csv(paste('Data/PredRast/ClimateBC/CSVs/',climBCRCP,sep=""))
-      
-      #Get average temperature and total precipitation for specified month, convert to raster, and write to PredRast directory 
-      print("Retreiving temperature and precipitation data for specified month ...")
-      if(month<10)
-      {
-        tmx_stamp<-paste('Tmax0',month,sep="")
-        tmn_stamp<-paste('Tmin0',month,sep="")
-        tav_stamp<-paste('Tave0',month,sep="")
-        p_stamp<-paste('PPT0',month,sep="")
-      }else{
-        tmx_stamp<-paste('Tmax',month,sep="")
-        tmn_stamp<-paste('Tmin',month,sep="")
-        tav_stamp<-paste('Tave',month,sep="")
-        p_stamp<-t_stamp<-paste('PPT',month,sep="")
-      }
-      
-      #Get temperature data, covert to raster, reproject and write to Data directory 
-      print("Writing max RCP temperature data to 'Data/PredRast/ClimateBC/tmax_rcp.tif'")
-      tmx<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmx_stamp)],crs=wgs84)
-      tmx_p<-projectRaster(tmx, crs = bcalb)
-      raster::writeRaster(tmx_p, filename = 'Data/PredRast/ClimateBC/tmax_rcp.tif')
-      
-      print("Writing min RCP temperature data to 'Data/PredRast/ClimateBC/tmin_rcp.tif'")
-      tmn<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmn_stamp)],crs=wgs84)
-      tmn_p<-projectRaster(tmn, crs = bcalb)
-      raster::writeRaster(tmn_p, filename = 'Data/PredRast/ClimateBC/tmin_rcp.tif')
-      
-      print("Writing mean RCP temperature data to 'Data/PredRast/ClimateBC/tave_rcp.tif'")
-      tav<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tav_stamp)],crs=wgs84)
-      tav_p<-projectRaster(tav, crs = bcalb)
-      raster::writeRaster(tav_p, filename = 'Data/PredRast/ClimateBC/tave_rcp.tif')
-      
-      #Get total precipitation data, covert to raster, reproject and write to Data directory 
-      print("Writing total RCP precipitation data to 'Data/PredRast/ClimateBC/ppt_rcp.tif'")
-      ppt<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',p_stamp)],crs=wgs84)
-      ppt_p<-projectRaster(ppt, crs = bcalb)
-      raster::writeRaster(ppt_p,filename = 'Data/PredRast/ClimateBC/ppt_rcp.tif')
-      
-      #Plot Results
-      #plot(stack(resample(aoi_dem,tmn_p,method='bilinear'),tmn_p,tmx_p,tav_p,ppt_p))
-      
-      
-      print("Finshed getting ClimateBC RCP data.")}
-    
-    
-  }
-  if(climate_source=='Daymet')
-  {
-    
-    print("Obtaining Daymet climate data")
-    
-    #Daymet path
-    daymet_pth<- 'Data/PredRast/DayMet/'
-    
-    #Get new extent bbox
-    aoi_ext<-raster::extent(projectRaster(aoi_dem,crs=wgs84))
-    
-    tl_y<-aoi_ext[4]
-    tl_x<-aoi_ext[1]
-    br_y<-aoi_ext[3]
-    br_x<-aoi_ext[2]
-    
-    loc<-c(tl_y,tl_x,br_y,br_x)
-    
-    print("Downloading Daymet Climate data, be patient ...")
-    #Use bbox to get Daymet tmin,tmax and prcp data for given year 
-    daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
-                                  start = year, 
-                                  end = year, 
-                                  path = daymet_pth, 
-                                  param = 'prcp',
-                                  frequency = 'monthly')
-    
-    daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
-                                  start = year, 
-                                  end = year, 
-                                  path = daymet_pth, 
-                                  param = 'tmin',
-                                  frequency = 'monthly')
-    
-    daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
-                                  start = year, 
-                                  end = year, 
-                                  path = daymet_pth, 
-                                  param = 'tmax',
-                                  frequency = 'monthly')
-    
-    
-    #Broken for monthly data, currently have to use gdal_translate
-    #daymetr::nc2tif(path = daymet_pth,overwrite = T)
-    
-    print("\n")
-    print("Daymet tiles downloaded, translating to GeoTIF, be patient ...")
-    
-    print(list.files(daymet_pth,"*ncss.nc"))
-    
-    #Get dir path
-    work_dir<-getwd()
-    
-    #Fudge src path for working with NETCDF
-    gdal_prcp_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/prcp_monttl_',year,'_ncss.nc":prcp', sep="")
-    gdal_tmin_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/tmin_monavg_',year,'_ncss.nc":tmin', sep="")
-    gdal_tmax_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/tmax_monavg_',year,'_ncss.nc":tmax', sep="")
-    
-    #Establsih dst file paths
-    gdal_prcp_dst<-paste(work_dir,'/Data/PredRast/DayMet/prcp_monttl_ncss.tif', sep="")
-    gdal_tmin_dst<-paste(work_dir,'/Data/PredRast/DayMet/tmin_monavg_ncss.tif', sep="")
-    gdal_tmax_dst<-paste(work_dir,'/Data/PredRast/DayMet/tmax_monavg_ncss.tif', sep="")
-    gdal_tavg_dst<-paste(work_dir,'/Data/PredRast/DayMet/tavg_monavg_ncss.tif', sep="")
-    
-    #Translate to geotiff using gdal 
-    gdal_translate(src_dataset = gdal_prcp_src, dst_dataset = gdal_prcp_dst, r="bilinear") 
-    gdal_translate(src_dataset = gdal_tmin_src,dst_dataset = gdal_tmin_dst,r="bilinear") 
-    gdal_translate(src_dataset = gdal_tmax_src,dst_dataset = gdal_tmax_dst,r="bilinear") 
-    
-    #Read in new data at given month index (1-12)
-    prcp<-raster::raster(gdal_prcp_dst, band = month)
-    tmin<-raster::raster(gdal_tmin_dst, band = month)
-    tmax<-raster::raster(gdal_tmax_dst, band = month)
-    
-    #Reproject to EPSG:3005
-    prcp<-raster::projectRaster(prcp,crs=bcalb)
-    tmin<-raster::projectRaster(tmin,crs=bcalb)
-    tmax<-raster::projectRaster(tmax,crs=bcalb)
-    
-    #Crop to aoi 
-    prcp<-raster::crop(prcp,aoi_dem)
-    tmin<-raster::crop(tmin,aoi_dem)
-    tmax<-raster::crop(tmax,aoi_dem)
-    
-    tavg<-(tmin+tmax)/2
-    
-    #Write to data dir
-    print("Writing precipitation data to '/Data/PredRast/DayMet/prcp_monttl_ncss.tif'")
-    raster::writeRaster(prcp,gdal_prcp_dst, overwrite = T)
-    print("Writing min temperature data to '/Data/PredRast/DayMet/tmin_monavg_ncss.tif'")
-    raster::writeRaster(tmin,gdal_tmin_dst, overwrite = T)
-    print("Writing max temperature data to '/Data/PredRast/DayMet/tmax_monavg_ncss.tif'")
-    raster::writeRaster(tmax,gdal_tmax_dst, overwrite = T)
-    print("Writing average temperature data to '/Data/PredRast/DayMet/tavg_monavg_ncss.tif'")
-    raster::writeRaster(tavg,gdal_tavg_dst, overwrite = T)
-    
-    #Peak
-    #aoi_dem<-raster::resample(aoi_dem, prcp, method="bilinear")
-    #s<-raster::stack(aoi_dem,prcp,tmin,tmax)
-    #raster::plot(s)
-    
-    print("Get Daymet data is done.")
-    
-  }
-  
-}else{
-  
-  interp_temp<-raster::raster(temp_pth)
-  if(crs(interp_temp)@projargs!=bcalb)
-  {
-    interp_temp<-raster::projectRaster(from=interp_temp,crs=crs(bcalb))
-  }
-  raster::writeRaster(interp_temp,"Data/PredRast/FieldObs/interp_temp.tif")
-  
-  interp_prcp<-raster::raster(prcp_pth)
-  if(crs(interp_prcp)@projargs!=bcalb)
-  {
-    interp_prcp<-raster::projectRaster(from=interp_prcp,crs=crs(bcalb))
-  }
-  raster::writeRaster(interp_prcp,"Data/PredRast/FieldObs/interp_prcp.tif")
-  
-}
+# #If not providing climate data 
+# if(climate_source!='NONE')
+# {
+#   #If user chose to use ClimateBC data 
+#   if(climate_source=="ClimateBC")
+#   {
+#     print("Converting DEM to ClimateBC Format at 600 m resolution.")
+#     #Need to resample DEM to 600 m resolution 
+#     resam_x<-(e[2]-e[1])/600
+#     resam_y<-(e[4]-e[3])/600
+#     resam_<-raster(nrow=resam_y, ncol=resam_x)
+#     extent(resam_)<-extent(aoi_dem)
+#     crs(resam_)<-crs(aoi_dem)
+#     
+#     #Project DEM to WGS84
+#     bcclim_dem<-projectRaster(resample(aoi_dem,resam_,method='bilinear'), crs = wgs84)
+#     #plot(bcclim_dem)
+#     
+#     #Get DEM as data frame with XY
+#     bcclim_dem<-raster::as.data.frame(bcclim_dem,xy=T,na.rm=T,centroids=T)
+#     
+#     #Format for input into ClimateBC windows tool as CSV
+#     lat<-bcclim_dem$y
+#     lon<-bcclim_dem$x
+#     el<-bcclim_dem[,3]
+#     
+#     #As YXZ
+#     bcclim_dem<-raster::as.data.frame(cbind(lat,lon,el))
+#     
+#     id<-paste(rep('site',length(bcclim_dem$lat)),c(1:length(bcclim_dem$lat)),sep = "")
+#     id<-cbind(id,rep('region1',length(bcclim_dem$lat)))
+#     
+#     bcclim_dem<-base::as.data.frame(cbind(id,bcclim_dem))
+#     
+#     #Specified by ClimateBC Tool 
+#     colnames(bcclim_dem)<-c('ID1','ID2','lat','long','el')
+#     
+#     #Convert elevation to integer 
+#     bcclim_dem$el<-round(bcclim_dem$el)
+#     
+#     #Write formatted CSV to 'bcclim_dem.csv'. !!User must now run this file in the ClimateBC tool for appropriate data and time period before continuing!!
+#     write_csv(bcclim_dem,'Data/PredRast/ClimateBC/CSVs/bcclim_dem.csv')
+#     
+#     print("Wrote DEM to 'Data/PredRast/ClimateBC/CSVs/bcclim_dem.csv'. (1) Open and file in EXCEL and save as CSV, do not make any edits (2) then run as input in ClimateBC tool with appropriate fields for year and month and desired dataset, (3) assure ClimateBC output CSV in 'Data/PredRast/ClimateBC/CSVs/' directory. (4) If running a Climate scenerio make sure this CSV is in the 'Data/PredRast/ClimateBC/CSVs/' directory as well.")
+#     
+#     hasRun<-readline(prompt='Have you run the ClimateBC tool and put output(s) in the "Data/PredRast/ClimateBC/CSVs/" direcotry, enter TRUE or FALSE?')
+#     
+#     
+#     
+#     #Check if user has run CliamteBC tool and put output CSV in correct directory,
+#     if(hasRun=='TRUE')
+#     {
+#       climBCname<-readline(prompt='Please provide name of ClimateBC output CSV, e.g., bcclim_dem_Year_2018M.csv:')
+#       if(calc_rcp=='TRUE')
+#       {
+#         climBCRCP<- readline(prompt='Please provide name of ClimateBC scenerio output CSV, e.g., bcclim_dem_CanESM2_rcp45M.csv:')
+#       }
+#       
+#     }else
+#     {
+#       print('Run ClimateBC tool and put output CSV into "Data/PredRast/ClimateBC/CSVs/"')
+#       climBCname<-readline(prompt='Please provide name of ClimateBC output CSV, e.g., bcclim_dem_Year_2018M.csv:')
+#       if(calc_rcp=='TRUE')
+#       {
+#         climBCRCP<- readline(prompt='Please provide name of ClimateBC scenerio output CSV, e.g., bcclim_dem_CanESM2_rcp45M.csv:')
+#       }
+#     }
+#     
+#     
+#     #Read in ClimateBC CSV
+#     print("Reading in ClimateBC output data ...")
+#     clim_bc_data<-read_csv(paste('Data/PredRast/ClimateBC/CSVs/',climBCname,sep=""))
+#     
+#     #Get average temperature and total precipitation for specified month, convert to raster, and write to PredRast directory 
+#     print("Retreiving temperature and precipitation data for specified month ...")
+#     if(month<10)
+#     {
+#       tmx_stamp<-paste('Tmax0',month,sep="")
+#       tmn_stamp<-paste('Tmin0',month,sep="")
+#       tav_stamp<-paste('Tave0',month,sep="")
+#       p_stamp<-paste('PPT0',month,sep="")
+#     }else{
+#       tmx_stamp<-paste('Tmax',month,sep="")
+#       tmn_stamp<-paste('Tmin',month,sep="")
+#       tav_stamp<-paste('Tave',month,sep="")
+#       p_stamp<-t_stamp<-paste('PPT',month,sep="")
+#     }
+#     
+#     #Get temperature data, covert to raster, reproject and write to Data directory 
+#     print("Writing max temperature data to 'Data/PredRast/ClimateBC/tmax.tif'")
+#     tmx<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmx_stamp)],crs=wgs84)
+#     tmx_p<-projectRaster(tmx, crs = bcalb)
+#     raster::writeRaster(tmx_p, filename = 'Data/PredRast/ClimateBC/tmax.tif')
+#     
+#     print("Writing min temperature data to 'Data/PredRast/ClimateBC/tmin.tif'")
+#     tmn<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmn_stamp)],crs=wgs84)
+#     tmn_p<-projectRaster(tmn, crs = bcalb)
+#     raster::writeRaster(tmn_p, filename = 'Data/PredRast/ClimateBC/tmin.tif')
+#     
+#     print("Writing mean temperature data to 'Data/PredRast/ClimateBC/tave.tif'")
+#     tav<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tav_stamp)],crs=wgs84)
+#     tav_p<-projectRaster(tav, crs = bcalb)
+#     raster::writeRaster(tav_p, filename = 'Data/PredRast/ClimateBC/tave.tif')
+#     
+#     #Get total precipitation data, covert to raster, reproject and write to Data directory 
+#     print("Writing total precipitation data to 'Data/PredRast/ClimateBC/ppt.tif'")
+#     ppt<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',p_stamp)],crs=wgs84)
+#     ppt_p<-projectRaster(ppt, crs = bcalb)
+#     raster::writeRaster(ppt_p,filename = 'Data/PredRast/ClimateBC/ppt.tif')
+#     
+#     #Plot Results
+#     #plot(stack(resample(aoi_dem,tmn_p,method='bilinear'),tmn_p,tmx_p,tav_p,ppt_p))
+#     
+#     
+#     print("Finshed getting ClimateBC data.")
+#     
+#     
+#     if(calc_rcp==TRUE)
+#     { 
+#       #Read in ClimateBC CSV
+#       print("Reading in ClimateBC output data ...")
+#       clim_bc_data<-read_csv(paste('Data/PredRast/ClimateBC/CSVs/',climBCRCP,sep=""))
+#       
+#       #Get average temperature and total precipitation for specified month, convert to raster, and write to PredRast directory 
+#       print("Retreiving temperature and precipitation data for specified month ...")
+#       if(month<10)
+#       {
+#         tmx_stamp<-paste('Tmax0',month,sep="")
+#         tmn_stamp<-paste('Tmin0',month,sep="")
+#         tav_stamp<-paste('Tave0',month,sep="")
+#         p_stamp<-paste('PPT0',month,sep="")
+#       }else{
+#         tmx_stamp<-paste('Tmax',month,sep="")
+#         tmn_stamp<-paste('Tmin',month,sep="")
+#         tav_stamp<-paste('Tave',month,sep="")
+#         p_stamp<-t_stamp<-paste('PPT',month,sep="")
+#       }
+#       
+#       #Get temperature data, covert to raster, reproject and write to Data directory 
+#       print("Writing max RCP temperature data to 'Data/PredRast/ClimateBC/tmax_rcp.tif'")
+#       tmx<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmx_stamp)],crs=wgs84)
+#       tmx_p<-projectRaster(tmx, crs = bcalb)
+#       raster::writeRaster(tmx_p, filename = 'Data/PredRast/ClimateBC/tmax_rcp.tif')
+#       
+#       print("Writing min RCP temperature data to 'Data/PredRast/ClimateBC/tmin_rcp.tif'")
+#       tmn<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmn_stamp)],crs=wgs84)
+#       tmn_p<-projectRaster(tmn, crs = bcalb)
+#       raster::writeRaster(tmn_p, filename = 'Data/PredRast/ClimateBC/tmin_rcp.tif')
+#       
+#       print("Writing mean RCP temperature data to 'Data/PredRast/ClimateBC/tave_rcp.tif'")
+#       tav<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tav_stamp)],crs=wgs84)
+#       tav_p<-projectRaster(tav, crs = bcalb)
+#       raster::writeRaster(tav_p, filename = 'Data/PredRast/ClimateBC/tave_rcp.tif')
+#       
+#       #Get total precipitation data, covert to raster, reproject and write to Data directory 
+#       print("Writing total RCP precipitation data to 'Data/PredRast/ClimateBC/ppt_rcp.tif'")
+#       ppt<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',p_stamp)],crs=wgs84)
+#       ppt_p<-projectRaster(ppt, crs = bcalb)
+#       raster::writeRaster(ppt_p,filename = 'Data/PredRast/ClimateBC/ppt_rcp.tif')
+#       
+#       #Plot Results
+#       #plot(stack(resample(aoi_dem,tmn_p,method='bilinear'),tmn_p,tmx_p,tav_p,ppt_p))
+#       
+#       
+#       print("Finshed getting ClimateBC RCP data.")}
+#     
+#     
+#   }
+#   if(climate_source=='Daymet')
+#   {
+#     
+#     print("Obtaining Daymet climate data")
+#     
+#     #Daymet path
+#     daymet_pth<- 'Data/PredRast/DayMet/'
+#     
+#     #Get new extent bbox
+#     aoi_ext<-raster::extent(projectRaster(aoi_dem,crs=wgs84))
+#     
+#     tl_y<-aoi_ext[4]
+#     tl_x<-aoi_ext[1]
+#     br_y<-aoi_ext[3]
+#     br_x<-aoi_ext[2]
+#     
+#     loc<-c(tl_y,tl_x,br_y,br_x)
+#     
+#     print("Downloading Daymet Climate data, be patient ...")
+#     #Use bbox to get Daymet tmin,tmax and prcp data for given year 
+#     daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
+#                                   start = year, 
+#                                   end = year, 
+#                                   path = daymet_pth, 
+#                                   param = 'prcp',
+#                                   frequency = 'monthly')
+#     
+#     daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
+#                                   start = year, 
+#                                   end = year, 
+#                                   path = daymet_pth, 
+#                                   param = 'tmin',
+#                                   frequency = 'monthly')
+#     
+#     daymetr::download_daymet_ncss(location = c(aoi_ext[4],aoi_ext[1],aoi_ext[3],aoi_ext[2]), 
+#                                   start = year, 
+#                                   end = year, 
+#                                   path = daymet_pth, 
+#                                   param = 'tmax',
+#                                   frequency = 'monthly')
+#     
+#     
+#     #Broken for monthly data, currently have to use gdal_translate
+#     #daymetr::nc2tif(path = daymet_pth,overwrite = T)
+#     
+#     print("\n")
+#     print("Daymet tiles downloaded, translating to GeoTIF, be patient ...")
+#     
+#     print(list.files(daymet_pth,"*ncss.nc"))
+#     
+#     #Get dir path
+#     work_dir<-getwd()
+#     
+#     #Fudge src path for working with NETCDF
+#     gdal_prcp_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/prcp_monttl_',year,'_ncss.nc":prcp', sep="")
+#     gdal_tmin_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/tmin_monavg_',year,'_ncss.nc":tmin', sep="")
+#     gdal_tmax_src<-paste('NETCDF:',"\"",work_dir,'/Data/PredRast/DayMet/tmax_monavg_',year,'_ncss.nc":tmax', sep="")
+#     
+#     #Establsih dst file paths
+#     gdal_prcp_dst<-paste(work_dir,'/Data/PredRast/DayMet/prcp_monttl_ncss.tif', sep="")
+#     gdal_tmin_dst<-paste(work_dir,'/Data/PredRast/DayMet/tmin_monavg_ncss.tif', sep="")
+#     gdal_tmax_dst<-paste(work_dir,'/Data/PredRast/DayMet/tmax_monavg_ncss.tif', sep="")
+#     gdal_tavg_dst<-paste(work_dir,'/Data/PredRast/DayMet/tavg_monavg_ncss.tif', sep="")
+#     
+#     #Translate to geotiff using gdal 
+#     gdal_translate(src_dataset = gdal_prcp_src, dst_dataset = gdal_prcp_dst, r="bilinear") 
+#     gdal_translate(src_dataset = gdal_tmin_src,dst_dataset = gdal_tmin_dst,r="bilinear") 
+#     gdal_translate(src_dataset = gdal_tmax_src,dst_dataset = gdal_tmax_dst,r="bilinear") 
+#     
+#     #Read in new data at given month index (1-12)
+#     prcp<-raster::raster(gdal_prcp_dst, band = month)
+#     tmin<-raster::raster(gdal_tmin_dst, band = month)
+#     tmax<-raster::raster(gdal_tmax_dst, band = month)
+#     
+#     #Reproject to EPSG:3005
+#     prcp<-raster::projectRaster(prcp,crs=bcalb)
+#     tmin<-raster::projectRaster(tmin,crs=bcalb)
+#     tmax<-raster::projectRaster(tmax,crs=bcalb)
+#     
+#     #Crop to aoi 
+#     prcp<-raster::crop(prcp,aoi_dem)
+#     tmin<-raster::crop(tmin,aoi_dem)
+#     tmax<-raster::crop(tmax,aoi_dem)
+#     
+#     tavg<-(tmin+tmax)/2
+#     
+#     #Write to data dir
+#     print("Writing precipitation data to '/Data/PredRast/DayMet/prcp_monttl_ncss.tif'")
+#     raster::writeRaster(prcp,gdal_prcp_dst, overwrite = T)
+#     print("Writing min temperature data to '/Data/PredRast/DayMet/tmin_monavg_ncss.tif'")
+#     raster::writeRaster(tmin,gdal_tmin_dst, overwrite = T)
+#     print("Writing max temperature data to '/Data/PredRast/DayMet/tmax_monavg_ncss.tif'")
+#     raster::writeRaster(tmax,gdal_tmax_dst, overwrite = T)
+#     print("Writing average temperature data to '/Data/PredRast/DayMet/tavg_monavg_ncss.tif'")
+#     raster::writeRaster(tavg,gdal_tavg_dst, overwrite = T)
+#     
+#     #Peak
+#     #aoi_dem<-raster::resample(aoi_dem, prcp, method="bilinear")
+#     #s<-raster::stack(aoi_dem,prcp,tmin,tmax)
+#     #raster::plot(s)
+#     
+#     print("Get Daymet data is done.")
+#     
+#   }
+#   
+# }else{
+#   
+ 
+# Load and write gridded temp data ####
+interp_temp <- read_stars(temp_pth)
+st_crs(interp_temp)
+interp_temp <- interp_temp %>%
+  st_transform(crs = 3005)
+write_stars(interp_temp,"C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
 
-####Get Stream Network from freshwater atlas, this layer is used for burning the DEM (REQUIRED)####
 
+# interp_temp<-raster::raster(temp_pth)
+#   if(crs(interp_temp)@projargs!=bcalb)
+#   {
+#     interp_temp<-raster::projectRaster(from=interp_temp,crs=crs(bcalb))
+#   }
+#   raster::writeRaster(interp_temp,"Data/PredRast/FieldObs/interp_temp.tif")
+#   
+#   interp_prcp<-raster::raster(prcp_pth)
+#   if(crs(interp_prcp)@projargs!=bcalb)
+#   {
+#     interp_prcp<-raster::projectRaster(from=interp_prcp,crs=crs(bcalb))
+#   }
+#   raster::writeRaster(interp_prcp,"Data/PredRast/FieldObs/interp_prcp.tif")
+#   
+# }
+
+####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
+
+stream_vect<-sf::st_read(stream_pth)
+st_crs(stream_vect)!=st_crs(bcalb)
+sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.gpkg')
+
+# Below is code I used to get streams layer - can't write to .shp because of the column names....
+remotes::install_github("poissonconsulting/fwapgr")
+library(sf)
+library(fwapgr)
+library(mapview)
+
+# Workaround create by Seb Dalgnaro to extract Parsnip River
+# using the fwapgr package while it is still in development
+
+
+wshed <- fwa_collection("whse_basemapping.fwa_named_watersheds_poly", 
+                        filter = list(gnis_name = "Parsnip River"))
+bbox <- sf::st_bbox(wshed)
+
+stream_orders <- 3:9
+all <- do.call(rbind, lapply(stream_orders, function(x){
+  message(glue::glue("getting stream order {x}"))
+  fwa_collection("whse_basemapping.fwa_stream_networks_sp", 
+                 bbox = bbox, 
+                 filter = list(stream_order = x),
+                 limit = 10000)
+}))
+
+parsnip <- sf::st_intersection(all, wshed)
+
+mapview(parsnip)
+
+
+parsnip <- parsnip %>%
+  st_transform(crs = 3005)
+
+stream_vect <- parsnip
+
+             
 #List likley stream layers, and pull desired layer, or...
 #poss_strm<-bcdata::bcdc_list()
 #poss_strm[stringr::str_detect(poss_strm,"stream")]
-
-
-
-print("Downloading Freshwater Atlas Stream network for WGC ...")
-if(stream_pth=="")
-{
-  #Grab freshwater atlas stream data for 'Watershed_Group_Code' from BC data warehouse, crop to extent
-  FWA_Stream<-bcdata::bcdc_query_geodata('92344413-8035-4c08-b996-65a9b3f62fca', crs = 3005) %>%
-    bcdata::filter(INTERSECTS(e_sf)) %>%
-    bcdata::collect() %>%
-    dplyr::select(geometry)
+# 
+# 
+# print("Downloading Freshwater Atlas Stream network for WGC ...")
+# if(stream_pth=="")
+# {
+#   #Grab freshwater atlas stream data for 'Watershed_Group_Code' from BC data warehouse, crop to extent
+#   FWA_Stream<-bcdata::bcdc_query_geodata('92344413-8035-4c08-b996-65a9b3f62fca', crs = 3005) %>%
+#     bcdata::filter(INTERSECTS(e_sf)) %>%
+#     bcdata::collect() %>%
+#     dplyr::select(geometry)
+#   
+#   if(st_crs(FWA_Stream)!=st_crs(bcalb))
+#   {
+#     FWA_Stream<-sf::st_transform(FWA_Stream,bcalb)
+#   }
+#   
+#   print("Cropping stream network to extent ...")
+#   #Crop FWA stream network to extent 
+#   FWA_Stream<-FWA_Stream %>% sf::st_crop(e)
+#   plot(FWA_Stream)
+#   #Peak
+#   #ggplot(FWA_Stream)+geom_sf()
   
-  if(st_crs(FWA_Stream)!=st_crs(bcalb))
-  {
-    FWA_Stream<-sf::st_transform(FWA_Stream,bcalb)
-  }
-  
-  print("Cropping stream network to extent ...")
-  #Crop FWA stream network to extent 
-  FWA_Stream<-FWA_Stream %>% sf::st_crop(e)
-  
-  #Peak
-  #ggplot(FWA_Stream)+geom_sf()
-  
-  #Write to stream network to openSTARS data dir
-  print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
-  sf::write_sf(FWA_Stream,paste('Data/Streams/fresh_water_atlas.shp',sep = ""))
-}else{
-  stream_vect<-sf::st_read(stream_pth)
-  
-  if(st_crs(stream_vect)!=st_crs(bcalb))
-  {
-    stream_vect<-sf::st_transform(stream_vect,bcalb)
-  }
-  
-  print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
-  sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp',sep = ""),delete_layer=T)
-}
-
+# #Write to stream network to openSTARS data dir
+#   print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
+#   sf::write_sf(FWA_Stream,paste('Data/Streams/fresh_water_atlas.shp',sep = ""))
+# }else{
+#   stream_vect<-sf::st_read(stream_pth)
+#   
+#   if(st_crs(stream_vect)!=st_crs(bcalb))
+#   {
+#     stream_vect<-sf::st_transform(stream_vect,bcalb)
+#   }
+#   
+#   print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
+#   sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.gpkg'))
+# }
 
 
 ####Generate a combined freshwater-atlas water bodies layer, using lakes, wetlands and glaciers defined by WATERBODY_TYPE (OPTIONAL)####
+
 
 ##Grab freshwater atlas glacier data for 'Watershed_Group_Code' from BC data warehouse, crop to extent##
 #List likely glacier layers, and pull desired layer, or...
