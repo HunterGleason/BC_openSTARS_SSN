@@ -436,8 +436,9 @@ stream_vect<-sf::st_read(stream_pth)
 st_crs(stream_vect)!=st_crs(bcalb)
 sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.gpkg')
 
-# Below is code I used to get streams layer - can't write to .shp because of the column names....
-remotes::install_github("poissonconsulting/fwapgr")
+# Below is code I used to get streams layer - can't write to .shp because of 
+# the column names.... so using .gpkg
+# remotes::install_github("poissonconsulting/fwapgr")
 library(sf)
 library(fwapgr)
 library(mapview)
@@ -450,7 +451,7 @@ wshed <- fwa_collection("whse_basemapping.fwa_named_watersheds_poly",
                         filter = list(gnis_name = "Parsnip River"))
 bbox <- sf::st_bbox(wshed)
 
-stream_orders <- 3:9
+stream_orders <- 2:9
 all <- do.call(rbind, lapply(stream_orders, function(x){
   message(glue::glue("getting stream order {x}"))
   fwa_collection("whse_basemapping.fwa_stream_networks_sp", 
@@ -520,75 +521,75 @@ stream_vect <- parsnip
 #poss_glac<-bcdata::bcdc_list()
 #poss_glac[stringr::str_detect(poss_glac,"glaciers")]
 
-print("Downloading Freshwater Atlas glaciers ...")
-FWA_Glaciers<-bcdc_query_geodata('8f2aee65-9f4c-4f72-b54c-0937dbf3e6f7', crs = 3005) %>%
-  bcdata::filter(INTERSECTS(e_sf)) %>%
-  bcdata::collect()
-
-print("glaciers to extent ...")
-FWA_Glaciers<-FWA_Glaciers %>% 
-  sf::st_crop(e) %>%
-  dplyr::select(WATERBODY_TYPE)
-
-
-
-##Grab freshwater atlas wetlands data for 'Watershed_Group_Code' from BC data warehouse, crop to extent###
-#List likley wetlands layers, and pull desired layer, or...
-#poss_wetl<-bcdata::bcdc_list()
-#poss_wetl[stringr::str_detect(poss_wetl,"wetland")]
-
-print("Downloading Freshwater Atlas wetlands ...")
-FWA_Wetlands<-bcdc_query_geodata("93b413d8-1840-4770-9629-641d74bd1cc6", crs = 3005) %>%
-  bcdata::filter(INTERSECTS(e_sf)) %>%
-  bcdata::collect()
-
-print("Cropping wetlands to extent ...")
-FWA_Wetlands<-FWA_Wetlands %>% 
-  sf::st_crop(e) %>%
-  dplyr::select(WATERBODY_TYPE)
-
-
-
-##Grab freshwater atlas lakes data for 'Watershed_Group_Code' from BC data warehouse, crop to extent##
-#List likley lakes layers, and pull desired layer, or...
-#poss_lake<-bcdata::bcdc_list()
-#[stringr::str_detect(poss_lake,"lake")]
-
-
-print("Downloading Freshwater Atlas lakes ...")
-FWA_Lakes<-bcdc_query_geodata("cb1e3aba-d3fe-4de1-a2d4-b8b6650fb1f6", crs = 3005) %>%
-  bcdata::filter(INTERSECTS(e_sf)) %>%
-  bcdata::collect()
-
-print("Cropping lakes to extent ...")
-FWA_Lakes<-FWA_Lakes %>% 
-  sf::st_crop(e) %>%
-  dplyr::select(WATERBODY_TYPE)
-
-
-#Combine the three diffrent water body layers
-print("joining waterbodies ...")
-waterbods <-rbind(as.data.frame(FWA_Lakes),as.data.frame(FWA_Wetlands),as.data.frame(FWA_Glaciers))
-
-#Rename water body type to 'WBT'
-colnames(waterbods)[1]<-'WBT'
-
-#Convert back to sf
-waterbods <- st_as_sf(waterbods)
-
-#ggplot()+geom_sf(data=FWA_Stream)+geom_sf(data=waterbods,aes(fill = WBT))
-
-
-if(st_crs(waterbods)!=st_crs(bcalb))
-{
-  waterbods<-sf::st_transform(waterbods,bcalb)
-}
-
-
-#Write water bodies layer to openSTARS dir
-print("Writing Freswater Atlas waterbodies layer to 'Data/PredVect/fresh_water_atlas_waterbods.shp'")
-sf::write_sf(waterbods, paste('Data/PredVect/fresh_water_atlas_waterbods.shp',sep = ""))
-
+# print("Downloading Freshwater Atlas glaciers ...")
+# FWA_Glaciers<-bcdc_query_geodata('8f2aee65-9f4c-4f72-b54c-0937dbf3e6f7', crs = 3005) %>%
+#   bcdata::filter(INTERSECTS(e_sf)) %>%
+#   bcdata::collect()
+# 
+# print("glaciers to extent ...")
+# FWA_Glaciers<-FWA_Glaciers %>% 
+#   sf::st_crop(e) %>%
+#   dplyr::select(WATERBODY_TYPE)
+# 
+# 
+# 
+# ##Grab freshwater atlas wetlands data for 'Watershed_Group_Code' from BC data warehouse, crop to extent###
+# #List likley wetlands layers, and pull desired layer, or...
+# #poss_wetl<-bcdata::bcdc_list()
+# #poss_wetl[stringr::str_detect(poss_wetl,"wetland")]
+# 
+# print("Downloading Freshwater Atlas wetlands ...")
+# FWA_Wetlands<-bcdc_query_geodata("93b413d8-1840-4770-9629-641d74bd1cc6", crs = 3005) %>%
+#   bcdata::filter(INTERSECTS(e_sf)) %>%
+#   bcdata::collect()
+# 
+# print("Cropping wetlands to extent ...")
+# FWA_Wetlands<-FWA_Wetlands %>% 
+#   sf::st_crop(e) %>%
+#   dplyr::select(WATERBODY_TYPE)
+# 
+# 
+# 
+# ##Grab freshwater atlas lakes data for 'Watershed_Group_Code' from BC data warehouse, crop to extent##
+# #List likley lakes layers, and pull desired layer, or...
+# #poss_lake<-bcdata::bcdc_list()
+# #[stringr::str_detect(poss_lake,"lake")]
+# 
+# 
+# print("Downloading Freshwater Atlas lakes ...")
+# FWA_Lakes<-bcdc_query_geodata("cb1e3aba-d3fe-4de1-a2d4-b8b6650fb1f6", crs = 3005) %>%
+#   bcdata::filter(INTERSECTS(e_sf)) %>%
+#   bcdata::collect()
+# 
+# print("Cropping lakes to extent ...")
+# FWA_Lakes<-FWA_Lakes %>% 
+#   sf::st_crop(e) %>%
+#   dplyr::select(WATERBODY_TYPE)
+# 
+# 
+# #Combine the three diffrent water body layers
+# print("joining waterbodies ...")
+# waterbods <-rbind(as.data.frame(FWA_Lakes),as.data.frame(FWA_Wetlands),as.data.frame(FWA_Glaciers))
+# 
+# #Rename water body type to 'WBT'
+# colnames(waterbods)[1]<-'WBT'
+# 
+# #Convert back to sf
+# waterbods <- st_as_sf(waterbods)
+# 
+# #ggplot()+geom_sf(data=FWA_Stream)+geom_sf(data=waterbods,aes(fill = WBT))
+# 
+# 
+# if(st_crs(waterbods)!=st_crs(bcalb))
+# {
+#   waterbods<-sf::st_transform(waterbods,bcalb)
+# }
+# 
+# 
+# #Write water bodies layer to openSTARS dir
+# print("Writing Freswater Atlas waterbodies layer to 'Data/PredVect/fresh_water_atlas_waterbods.shp'")
+# sf::write_sf(waterbods, paste('Data/PredVect/fresh_water_atlas_waterbods.shp',sep = ""))
+# 
 
 ####Get Roads Networks####
 
@@ -596,213 +597,213 @@ sf::write_sf(waterbods, paste('Data/PredVect/fresh_water_atlas_waterbods.shp',se
 #poss_roads<-bcdata::bcdc_list()
 #[stringr::str_detect(poss_roads,"road")]
 
-print("Loading roads layer, this may take a while ...")
-if(roads_pth=="")
-{
-  roads<-bcdata::bcdc_query_geodata('bb060417-b6e6-4548-b837-f9060d94743e') %>%
-    bcdata::filter(INTERSECTS(e_sf)) %>%
-    bcdata::collect()
-  
-  if(st_crs(roads)!=st_crs(bcalb))
-  {
-    roads<-sf::st_transform(roads,bcalb)
-  }
-  
-  roads<-sf::st_as_sf(roads)
-  
-}else{
-  
-  roads<-sf::st_read(roads_pth)
-  
-  if(st_crs(roads)!=st_crs(bcalb))
-  {
-    roads<-sf::st_transform(roads,bcalb)
-  }
-  
-  #Crop to aoi extent
-  print("Cropping roads to extent ...")
-  roads<-roads %>% 
-    sf::st_crop(e)
-  
-  roads<-sf::st_as_sf(roads)
-}
-
-#ggplot(roads)+geom_sf()
-
-#Write roads data to PredVect directory as roads_v.shp
-print("Writing roads to 'Data/PredVect/roads_v.shp'")
-sf::write_sf(roads %>% dplyr::select(geometry),'Data/PredVect/roads_v.shp')
-
-
-#print("Plotting final vector layers...")
-#ggplot()+geom_sf(data=roads,fill="black",color="black")+geom_sf(data=FWA_Stream,fill="blue",color="blue")+geom_sf(data=waterbods,aes(fill = WBT))
-
+# print("Loading roads layer, this may take a while ...")
+# if(roads_pth=="")
+# {
+#   roads<-bcdata::bcdc_query_geodata('bb060417-b6e6-4548-b837-f9060d94743e') %>%
+#     bcdata::filter(INTERSECTS(e_sf)) %>%
+#     bcdata::collect()
+#   
+#   if(st_crs(roads)!=st_crs(bcalb))
+#   {
+#     roads<-sf::st_transform(roads,bcalb)
+#   }
+#   
+#   roads<-sf::st_as_sf(roads)
+#   
+# }else{
+#   
+#   roads<-sf::st_read(roads_pth)
+#   
+#   if(st_crs(roads)!=st_crs(bcalb))
+#   {
+#     roads<-sf::st_transform(roads,bcalb)
+#   }
+#   
+#   #Crop to aoi extent
+#   print("Cropping roads to extent ...")
+#   roads<-roads %>% 
+#     sf::st_crop(e)
+#   
+#   roads<-sf::st_as_sf(roads)
+# }
+# 
+# #ggplot(roads)+geom_sf()
+# 
+# #Write roads data to PredVect directory as roads_v.shp
+# print("Writing roads to 'Data/PredVect/roads_v.shp'")
+# sf::write_sf(roads %>% dplyr::select(geometry),'Data/PredVect/roads_v.shp')
+# 
+# 
+# #print("Plotting final vector layers...")
+# #ggplot()+geom_sf(data=roads,fill="black",color="black")+geom_sf(data=FWA_Stream,fill="blue",color="blue")+geom_sf(data=waterbods,aes(fill = WBT))
+# 
 
 
 ####Consolidated Cutblocks####
 
 
-print("Downloading Consolidated Cutblocks ...")
-ConsCutb<-bcdc_query_geodata("b1b647a6-f271-42e0-9cd0-89ec24bce9f7", crs = 3005) %>%
-  bcdata::filter(INTERSECTS(e_sf)) %>%
-  bcdata::select(HARVEST_YEAR) %>%
-  bcdata::collect()
-
-
-if(st_crs(ConsCutb)!=st_crs(bcalb))
-{
-  ConsCutb<-sf::st_transform(ConsCutb,bcalb)
-}
-
-
-ConsCutb<-ConsCutb%>%
-  sf::st_crop(e)
-
-ConsCutb$Age<-"OldCB"
-ConsCutb$Age[ConsCutb$HARVEST_YEAR>=(year-5)]<-"NewCB"
-ConsCutb$Age[ConsCutb$HARVEST_YEAR<(year-5) & ConsCutb$HARVEST_YEAR>=(year-25)]<-"RgrwSCB"
-ConsCutb$Age[ConsCutb$HARVEST_YEAR<(year-25) & ConsCutb$HARVEST_YEAR>=(year-45)]<-"RgrwYCB"
-
-ConsCutb<-ConsCutb %>%
-  dplyr::select(Age)
-
-#ggplot(ConsCutb) + geom_sf(aes(fill=Age))
-
-
-#Write cutblock data to PredVect directory as roads_v.shp
-print("Writing cutblocks to 'Data/PredVect/ConsCutBlk.shp'")
-sf::write_sf(ConsCutb,'Data/PredVect/ConsCutBlk.shp')
-
+# print("Downloading Consolidated Cutblocks ...")
+# ConsCutb<-bcdc_query_geodata("b1b647a6-f271-42e0-9cd0-89ec24bce9f7", crs = 3005) %>%
+#   bcdata::filter(INTERSECTS(e_sf)) %>%
+#   bcdata::select(HARVEST_YEAR) %>%
+#   bcdata::collect()
+# 
+# 
+# if(st_crs(ConsCutb)!=st_crs(bcalb))
+# {
+#   ConsCutb<-sf::st_transform(ConsCutb,bcalb)
+# }
+# 
+# 
+# ConsCutb<-ConsCutb%>%
+#   sf::st_crop(e)
+# 
+# ConsCutb$Age<-"OldCB"
+# ConsCutb$Age[ConsCutb$HARVEST_YEAR>=(year-5)]<-"NewCB"
+# ConsCutb$Age[ConsCutb$HARVEST_YEAR<(year-5) & ConsCutb$HARVEST_YEAR>=(year-25)]<-"RgrwSCB"
+# ConsCutb$Age[ConsCutb$HARVEST_YEAR<(year-25) & ConsCutb$HARVEST_YEAR>=(year-45)]<-"RgrwYCB"
+# 
+# ConsCutb<-ConsCutb %>%
+#   dplyr::select(Age)
+# 
+# #ggplot(ConsCutb) + geom_sf(aes(fill=Age))
+# 
+# 
+# #Write cutblock data to PredVect directory as roads_v.shp
+# print("Writing cutblocks to 'Data/PredVect/ConsCutBlk.shp'")
+# sf::write_sf(ConsCutb,'Data/PredVect/ConsCutBlk.shp')
+# 
 
 
 
 ####Fire Perimeters####
 
 
-print("Downloading Fire Perimeters - Historical")
-Fires<-bcdc_query_geodata("22c7cb44-1463-48f7-8e47-88857f207702",crs=3005) %>%
-  bcdata::filter(INTERSECTS(e_sf)) %>%
-  bcdata::select(FIRE_YEAR) %>%
-  bcdata::collect()
-
-if(st_crs(Fires)!=st_crs(bcalb))
-{
-  Fires<-sf::st_transform(Fires,bcalb)
-}
-
-
-Fires <- Fires %>%
-  sf::st_crop(e)
-
-Fires$Age<-"OldF"
-Fires$Age[Fires$FIRE_YEAR>=(year-5)]<-"NewF"
-Fires$Age[Fires$FIRE_YEAR<(year-5) & Fires$FIRE_YEAR>=(year-25)]<-"RgrwSF"
-Fires$Age[Fires$FIRE_YEAR<(year-25) & Fires$FIRE_YEAR>=(year-45)]<-"RgrwYF"
-
-Fires<-Fires %>%
-  dplyr::select(Age)
-
-#ggplot(Fires) + geom_sf(aes(fill=Age))
-
-#Write cutblock data to PredVect directory as roads_v.shp
-print("Writing fires to 'Data/PredVect/Fires.shp'")
-sf::write_sf(Fires,'Data/PredVect/Fires.shp')
-
-
-####BEC-Zone####
-
-
-#BEC<-bcdc_query_geodata("bec-zones-generalized-1-2m-",crs=3005) %>%
-#  bcdata::filter(INTERSECTS(e_sf))
-
-####LAI####
-
-#Load Sentinel 2 derived LAI (This can be produced using SNAP Toolbox)
-
-if(lai_pth!="")
-{
-  lai<-raster(lai_pth)
-  
-  #Project if necessary
-  if(raster::compareCRS(raster::crs(lai),bcalb)==F)
-  {
-    lai<-projectRaster(lai,crs=bcalb)
-  }
-  
-  lai<-raster::crop(lai,aoi_dem)
-  
-  #Extinction coefficient (Kd) based on Fig. 15.4 in Environmental Biophysics (Campbell & Norman, 1998), assumes leaf angle distribution x=1 
-  #kd_xeq1<-read.csv('Data/PredRast/LAI/kd_coef.csv')
-  #names(kd_xeq1)<-c('LAI','Kd')
-  
-  #Function finds best estimate of Kd as a function of LAI 
-  gen_kd<-function(x)
-  {
-    kd<-(0.8079940*x^-0.0770034)+(-0.0006393*x^2)
-    
-    return(kd)
-  }
-  
-  #raster::beginCluster(16)
-  
-  #Get a raster of Kd, a function of LAI 
-  #Kd <- raster::clusterR(lai, calc, args=list(fun=gen_kd), export=c('kd_xeq1'))
-  
-  Kd <- raster::calc(lai,gen_kd)
-  
-  
-  #Based on work of Fuchs et al. (1976), interception of beam and diffuse radiation by canopy averaged over a whole day can be approximated by 
-  #the intercepted function for diffuse because the sun traverse the whole sky. Therefore the average transmission of canopies can be 
-  #modeled over whole days using Eq 15.6 (Campbell & Norman, 1998) with Kbe replaced with Kd, and the daily fractional interception can
-  #be computed as : f = 1-exp(-Kd*Lt)
-  frac_intercept<-1-exp(-Kd*lai)
-  
-  #Remove negative fractions 
-  frac_intercept[frac_intercept<0]<-0
-  
-  #End cluster 
-  #raster::endCluster()
-  
-  #Write fractional interception raster for assumed leaf angle distribution x=1
-  writeRaster(frac_intercept,'Data/PredRast/LAI/dly_frac_intercep_x1.tif',overwrite=T)
-  writeRaster(lai,'Data/PredRast/LAI/LAI.tif',overwrite=T)
-}
-
-
-
-####Process Landsat Brightness Temperature layer####
-if(LST_pth!="")
-{
-  BT<-raster(LST_pth)
-  
-  #Project if necessary
-  if(raster::compareCRS(raster::crs(BT),bcalb)==F)
-  {
-    BT<-projectRaster(BT,crs=bcalb)
-  }
-  
-  BT<-raster::crop(BT,aoi_dem)
-  
-  writeRaster(BT,"Data/PredRast/LST/LST.tif",overwrite=T)
-}
-
-
-####MODIS Snow Off Date####
-if(MODIS_SDoff_pth!="")
-{
-  SDoff<-raster(MODIS_SDoff_pth, band = 2)
-  
-  raster::NAvalue(SDoff)<--9
-  
-  #Project if necessary
-  if(raster::compareCRS(raster::crs(SDoff),bcalb)==F)
-  {
-    SDoff<-projectRaster(SDoff,crs=bcalb)
-  }
-  
-  SDoff<-raster::crop(SDoff,aoi_dem)
-  
-  writeRaster(SDoff,"Data/PredRast/MD10A1_SDOFF/SDoff.tif")
-}
+# print("Downloading Fire Perimeters - Historical")
+# Fires<-bcdc_query_geodata("22c7cb44-1463-48f7-8e47-88857f207702",crs=3005) %>%
+#   bcdata::filter(INTERSECTS(e_sf)) %>%
+#   bcdata::select(FIRE_YEAR) %>%
+#   bcdata::collect()
+# 
+# if(st_crs(Fires)!=st_crs(bcalb))
+# {
+#   Fires<-sf::st_transform(Fires,bcalb)
+# }
+# 
+# 
+# Fires <- Fires %>%
+#   sf::st_crop(e)
+# 
+# Fires$Age<-"OldF"
+# Fires$Age[Fires$FIRE_YEAR>=(year-5)]<-"NewF"
+# Fires$Age[Fires$FIRE_YEAR<(year-5) & Fires$FIRE_YEAR>=(year-25)]<-"RgrwSF"
+# Fires$Age[Fires$FIRE_YEAR<(year-25) & Fires$FIRE_YEAR>=(year-45)]<-"RgrwYF"
+# 
+# Fires<-Fires %>%
+#   dplyr::select(Age)
+# 
+# #ggplot(Fires) + geom_sf(aes(fill=Age))
+# 
+# #Write cutblock data to PredVect directory as roads_v.shp
+# print("Writing fires to 'Data/PredVect/Fires.shp'")
+# sf::write_sf(Fires,'Data/PredVect/Fires.shp')
+# 
+# 
+# ####BEC-Zone####
+# 
+# 
+# #BEC<-bcdc_query_geodata("bec-zones-generalized-1-2m-",crs=3005) %>%
+# #  bcdata::filter(INTERSECTS(e_sf))
+# 
+# ####LAI####
+# 
+# #Load Sentinel 2 derived LAI (This can be produced using SNAP Toolbox)
+# 
+# if(lai_pth!="")
+# {
+#   lai<-raster(lai_pth)
+#   
+#   #Project if necessary
+#   if(raster::compareCRS(raster::crs(lai),bcalb)==F)
+#   {
+#     lai<-projectRaster(lai,crs=bcalb)
+#   }
+#   
+#   lai<-raster::crop(lai,aoi_dem)
+#   
+#   #Extinction coefficient (Kd) based on Fig. 15.4 in Environmental Biophysics (Campbell & Norman, 1998), assumes leaf angle distribution x=1 
+#   #kd_xeq1<-read.csv('Data/PredRast/LAI/kd_coef.csv')
+#   #names(kd_xeq1)<-c('LAI','Kd')
+#   
+#   #Function finds best estimate of Kd as a function of LAI 
+#   gen_kd<-function(x)
+#   {
+#     kd<-(0.8079940*x^-0.0770034)+(-0.0006393*x^2)
+#     
+#     return(kd)
+#   }
+#   
+#   #raster::beginCluster(16)
+#   
+#   #Get a raster of Kd, a function of LAI 
+#   #Kd <- raster::clusterR(lai, calc, args=list(fun=gen_kd), export=c('kd_xeq1'))
+#   
+#   Kd <- raster::calc(lai,gen_kd)
+#   
+#   
+#   #Based on work of Fuchs et al. (1976), interception of beam and diffuse radiation by canopy averaged over a whole day can be approximated by 
+#   #the intercepted function for diffuse because the sun traverse the whole sky. Therefore the average transmission of canopies can be 
+#   #modeled over whole days using Eq 15.6 (Campbell & Norman, 1998) with Kbe replaced with Kd, and the daily fractional interception can
+#   #be computed as : f = 1-exp(-Kd*Lt)
+#   frac_intercept<-1-exp(-Kd*lai)
+#   
+#   #Remove negative fractions 
+#   frac_intercept[frac_intercept<0]<-0
+#   
+#   #End cluster 
+#   #raster::endCluster()
+#   
+#   #Write fractional interception raster for assumed leaf angle distribution x=1
+#   writeRaster(frac_intercept,'Data/PredRast/LAI/dly_frac_intercep_x1.tif',overwrite=T)
+#   writeRaster(lai,'Data/PredRast/LAI/LAI.tif',overwrite=T)
+# }
+# 
+# 
+# 
+# ####Process Landsat Brightness Temperature layer####
+# if(LST_pth!="")
+# {
+#   BT<-raster(LST_pth)
+#   
+#   #Project if necessary
+#   if(raster::compareCRS(raster::crs(BT),bcalb)==F)
+#   {
+#     BT<-projectRaster(BT,crs=bcalb)
+#   }
+#   
+#   BT<-raster::crop(BT,aoi_dem)
+#   
+#   writeRaster(BT,"Data/PredRast/LST/LST.tif",overwrite=T)
+# }
+# 
+# 
+# ####MODIS Snow Off Date####
+# if(MODIS_SDoff_pth!="")
+# {
+#   SDoff<-raster(MODIS_SDoff_pth, band = 2)
+#   
+#   raster::NAvalue(SDoff)<--9
+#   
+#   #Project if necessary
+#   if(raster::compareCRS(raster::crs(SDoff),bcalb)==F)
+#   {
+#     SDoff<-projectRaster(SDoff,crs=bcalb)
+#   }
+#   
+#   SDoff<-raster::crop(SDoff,aoi_dem)
+#   
+#   writeRaster(SDoff,"Data/PredRast/MD10A1_SDOFF/SDoff.tif")
+# }
 
 
