@@ -23,15 +23,15 @@ dem_path<-"Data/DEM/dem.tif"
 #Path to observed stream sites.
 sites_path <- "Data/Sites/sites.gpkg"
 
-#Prompt user to added a repeated measures data to SSN object. 
-repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
-
-#If adding repeated SSN measures, prompt user for SSN file location(s). 
-if(repeated_meas=='TRUE')
-{
-  ssn_vec<-readline(prompt="Enter path(s) to SSN objects to join to current SSN as repeated measures, seperated by ',' : ")
-  ssn_vec<-unlist(strsplit(ssn_vec[[1]],','))
-}
+# #Prompt user to added a repeated measures data to SSN object. 
+# repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
+# 
+# #If adding repeated SSN measures, prompt user for SSN file location(s). 
+# if(repeated_meas=='TRUE')
+# {
+#   ssn_vec<-readline(prompt="Enter path(s) to SSN objects to join to current SSN as repeated measures, seperated by ',' : ")
+#   ssn_vec<-unlist(strsplit(ssn_vec[[1]],','))
+# }
 
 
 #Prompt user for path to predictions site layer, or allow auto generation of prediction sites.
@@ -49,7 +49,7 @@ if(pred_sites=='provided')
 
 
 #Path to freshwater-atlas stream network
-stream_path<-"Data/Streams/fresh_water_atlas.shp"
+stream_path<-"Data/Streams/fresh_water_atlas.gpkg"
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 climate_type<-readline(prompt = "Enter 'BC' to use ClimateBC climate data, or 'DM' to use Daymet, or 'NONE' to provide gridded climate data: ")
@@ -83,6 +83,7 @@ if(climate_type=='DM')
                      "Data/PredRast/MD10A1_SDOFF/SDoff.tif")
   }
 }
+
 
 #Make raster covar names shp file friendly 
 r_pred_names<-c('avTmp','totPpt','frcItrc','lai','lst','sdoff')
