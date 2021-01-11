@@ -68,6 +68,7 @@ st_crs(sites)!=st_crs(bcalb)
 sf::write_sf(sites,"Data/Sites/sites.gpkg",overwrite=T)
 
 
+#### Load and write krige map - check proj
 interp_temp <- read_stars(temp_pth)
 st_crs(interp_temp)
 interp_temp <- interp_temp %>%
