@@ -94,7 +94,7 @@ wshed <- fwa_collection("whse_basemapping.fwa_named_watersheds_poly",
                                      filter = list(gnis_name = "Parsnip River"))
 bbox <- sf::st_bbox(wshed)
              
-stream_orders <- 2:9
+stream_orders <- 3:9
 all <- do.call(rbind, lapply(stream_orders, function(x){
                message(glue::glue("getting stream order {x}"))
                fwa_collection("whse_basemapping.fwa_stream_networks_sp", 
@@ -103,7 +103,7 @@ all <- do.call(rbind, lapply(stream_orders, function(x){
                               limit = 10000)
              }))
              
- parsnip <- sf::st_intersection(all, wshed)
+parsnip <- sf::st_intersection(all, wshed)
              
 mapview(parsnip)
              
@@ -113,9 +113,13 @@ parsnip <- parsnip %>%
              
 stream_vect <- parsnip
 
+stream_vect <- stream_vect %>%
+  select(gradient, length_metre, geometry)
 
+mapView(stream_vect)
 
 stream_vect<-sf::st_read(stream_pth)
 st_crs(stream_vect)!=st_crs(bcalb)
-sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.gpkg')
+sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp'))
+             
              
