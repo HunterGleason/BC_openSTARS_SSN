@@ -30,7 +30,7 @@ pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at whic
 
 
 #Path to freshwater-atlas stream network
-stream_path<-"Data/Streams/fresh_water_atlas.gpkg"
+stream_path<-"Data/Streams/fresh_water_atlas.shp"
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 #Enter path to gridded air temp
@@ -43,6 +43,7 @@ r_pred_names<-c('mavTmp')
 accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
 
 #Prompt user for desired minimum stream length. 
+
 min_strm_lngth<-strtoi(readline(prompt = "Please enter minimum stream length in number of DEM raster cells; shorter first order stream segments are deleted, typically set to zero.: "))
 
 #Prompt user for depth to burn DEM 
@@ -114,27 +115,27 @@ check_projection(r_pred_paths)
 #If a stream network is available (see import_data) and burn > 0 it will be first burnt into DEM. 
 #Stream topology is derived using the GRASS function r.stream.order.
 #See params.
-print("Deriving streams, this may take a while ...")
-if(burn_m=="")
-{
-  derive_streams(burn = 0, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
-}else{
+# print("Deriving streams, this may take a while ...")
+# if(burn_m=="")
+# {
+#   derive_streams(burn = 0, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
+# }else{
   derive_streams(burn = burn_m, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
-}
+# }
 
 # Check and correct complex junctions 
-print("Checking for and correcting complex junctions, this may take a while ...")
+# print("Checking for and correcting complex junctions, this may take a while ...")
 cj <- check_compl_confluences()
-if(cj){
-  print("Correcting Stream Junctions ...")
+# if(cj){
+#   print("Correcting Stream Junctions ...")
   correct_compl_confluences()
-}
+# }
 
-lakes <- readVECT("watrbod", ignore.stderr = TRUE)
-lakes <- st_as_sf(lakes)
-lakes <- lakes[lakes$WBT=='L',]
-lakes<- as_Spatial(lakes)
-writeVECT(lakes,vname = 'lakes')
+# lakes <- readVECT("watrbod", ignore.stderr = TRUE)
+# lakes <- st_as_sf(lakes)
+# lakes <- lakes[lakes$WBT=='L',]
+# lakes<- as_Spatial(lakes)
+# writeVECT(lakes,vname = 'lakes')
 
 #!!In progress!!
 #delete_lakes('lakes')
@@ -144,84 +145,93 @@ writeVECT(lakes,vname = 'lakes')
 print("Computing stream edge attributes, this may take a while ...")
 calc_edges()
 
+#Error message from calc_edges()
+# Calculating reach contributing area (RCA) ...
+# Calculating upstream catchment areas ...
+# Error in `[.data.table`(dt, stream == id, `:=`(total_area, a1 + a2 + dt[stream ==  : 
+# Supplied 2 items to be assigned to 1 items of column 'total_area'. If you wish to 'recycle' the RHS please use rep() to make this intent clear to readers of your code
+# In addition: Warning message:
+# In if (dt[stream == id, prev_str01, ] == 0) { :
+# the condition has length > 1 and only the first element will be used
+
 
 #### Calculate DEM derivative layers for use and model inputs using rgrass7 ####
-if(burn_m==0)
-{
+# if(burn_m==0)
+# {
   dem_name<-'dem_cond'
-}else{
-  dem_name<-paste('dem_cond_burn',burn_m,sep="")
-}
+# }else{
+#   dem_name<-paste('dem_cond_burn',burn_m,sep="")
+# }
 
-# calculate slope and aspect from DEM as an input attribute
-print("Computing slope and aspect from DEM ...")
-execGRASS("r.slope.aspect", flags = c("overwrite"),
-          parameters = list(
-            elevation = dem_name,
-            slope = "slope",
-            aspect = "aspect"
-          ))
+# # calculate slope and aspect from DEM as an input attribute
+# print("Computing slope and aspect from DEM ...")
+# execGRASS("r.slope.aspect", flags = c("overwrite"),
+#           parameters = list(
+#             elevation = dem_name,
+#             slope = "slope",
+#             aspect = "aspect"
+#           ))
+# 
+# 
+# #calculate total solar irradiance for the ~15th of month, should ~ average solar input for the month ...
+# print("Computing total solar irradiance for the 15th day of month, this may take a while ...")
+# procs<-round(detectCores(all.tests = FALSE, logical = TRUE)*(cpu/100))
+# execGRASS("r.sun",flags = c("overwrite"),
+#           parameters = list(elevation=dem_name,
+#                             aspect="aspect",
+#                             slope="slope",
+#                             glob_rad="totirra",
+#                             day=doy_centres[month],
+#                             nprocs=procs))
 
-
-#calculate total solar irradiance for the ~15th of month, should ~ average solar input for the month ...
-print("Computing total solar irradiance for the 15th day of month, this may take a while ...")
-procs<-round(detectCores(all.tests = FALSE, logical = TRUE)*(cpu/100))
-execGRASS("r.sun",flags = c("overwrite"),
-          parameters = list(elevation=dem_name,
-                            aspect="aspect",
-                            slope="slope",
-                            glob_rad="totirra",
-                            day=doy_centres[month],
-                            nprocs=procs))
-
-#Adjust incoming solar radiation for canopy effects based on Sentinel 2 derived daily fractional interception by canopy.
-#Assumes leaf angle distribution x=1.
-print("Adjusting solar input for daily fractional interception from canopy ...")
-execGRASS("r.mapcalc",flags=c("overwrite"),
-          parameters = list(
-            expression = "totirra_adj = totirra - ( totirra * frcItrc * 0.8)"
-          ))
-
-#Buffer stream network by 120m 
-print("Buffering Stream Network ...")
-execGRASS("v.buffer",flags = c("overwrite"),
-          parameters = list(
-            input="streams_v",
-            output="streams_buff",
-            distance=150
-          ))
-
-#Set mask to stream buffer
-print("Masking to buffered streams ...")
-execGRASS("r.mask",flags = c("overwrite"),
-          parameters = list(
-            vector = "streams_buff"
-          ))
-
-#Generate adjusted total solar input layer masked to stream buffer
-print("Generate solar input along streams buffer ...")
-execGRASS("r.mapcalc",flags = c("overwrite"),
-          parameters = list(
-            expression="totirra_strm = totirra_adj"
-          ))
-
-
-#Deactivate stream mask
-print("Deactivate stream mask ...")
-execGRASS("r.mask", flags = c("r"))
-
-# calculate eastness from aspect as an input attribute
-print("Computing Eastness and Northness from aspect ...")
-execGRASS("r.mapcalc",flags = c("overwrite"),
-          parameters = list(
-            expression = "eastness = cos(aspect)"
-          ))
-
-# calculate northness from aspect as an input attribute
-execGRASS("r.mapcalc",flags = c("overwrite"),
-          parameters = list(
-            expression = "northnes = sin(aspect)"
-          ))
+# #Adjust incoming solar radiation for canopy effects based on Sentinel 2 derived daily fractional interception by canopy.
+# #Assumes leaf angle distribution x=1.
+# print("Adjusting solar input for daily fractional interception from canopy ...")
+# execGRASS("r.mapcalc",flags=c("overwrite"),
+#           parameters = list(
+#             expression = "totirra_adj = totirra - ( totirra * frcItrc * 0.8)"
+#           ))
+# 
+# #Buffer stream network by 120m 
+# print("Buffering Stream Network ...")
+# execGRASS("v.buffer",flags = c("overwrite"),
+#           parameters = list(
+#             input="streams_v",
+#             output="streams_buff",
+#             distance=150
+#           ))
+# 
+# #Set mask to stream buffer
+# print("Masking to buffered streams ...")
+# execGRASS("r.mask",flags = c("overwrite"),
+#           parameters = list(
+#             vector = "streams_buff"
+#           ))
+# 
+# #Generate adjusted total solar input layer masked to stream buffer
+# print("Generate solar input along streams buffer ...")
+# execGRASS("r.mapcalc",flags = c("overwrite"),
+#           parameters = list(
+#             expression="totirra_strm = totirra_adj"
+#           ))
+# 
+# 
+# #Deactivate stream mask
+# print("Deactivate stream mask ...")
+# execGRASS("r.mask", flags = c("r"))
+# 
+# # calculate eastness from aspect as an input attribute
+# print("Computing Eastness and Northness from aspect ...")
+# execGRASS("r.mapcalc",flags = c("overwrite"),
+#           parameters = list(
+#             expression = "eastness = cos(aspect)"
+#           ))
+# 
+# # calculate northness from aspect as an input attribute
+# execGRASS("r.mapcalc",flags = c("overwrite"),
+#           parameters = list(
+#             expression = "northnes = sin(aspect)"
+#           ))
 
 # calculate drainage from dem
 print("Calculating drainage from DEM ...")
@@ -230,86 +240,102 @@ execGRASS("r.watershed",flags = c("overwrite"),
             elevation = dem_name,
             drainage = "drain"
           ))
-
-
-# calculate down stream gradient from dem and drainage
-print("Calculating stream gradient from drainage ...")
-execGRASS("r.stream.slope",flags = c("overwrite"),
-          parameters = list(
-            direction = "drain",
-            elevation = dem_name,
-            gradient = "gradt"
-          ))
-
-#Mask gradient data to vector stream network
-execGRASS("r.mask",flags = c("overwrite"),
-          parameters = list(
-            raster = "streams_r"
-          ))
-
-
-#Run mapcalc on gradiant raster, and Landsat Brightness Temp with stream mask active 
-execGRASS("r.mapcalc", flags = c("overwrite"),
-          parameters = list(
-            expression = "gradt_ds = gradt"
-          ))
-
-execGRASS("r.mapcalc", flags = c("overwrite"),
-          parameters = list(
-            expression = "lstst = lst"
-          ))
-
-#Deactivate stream mask
-execGRASS("r.mask", flags = c("r"))
-
-
-#Mask Landsat-8 Brightness Temp to lakes 
-execGRASS("r.mask",flags = c("overwrite"),
-          parameters = list(
-            vector = "lakes"
-          ))
-
-#Run mapcalc on gradiant raster with stream mask active 
-execGRASS("r.mapcalc", flags = c("overwrite"),
-          parameters = list(
-            expression = "lstlk = lst"
-          ))
-
-#Deactivate lake mask
-execGRASS("r.mask", flags = c("r"))
-
-
-print("Converting roads to raster ...")
-dem <- readRAST("dem", ignore.stderr = TRUE)
-execGRASS("v.to.rast", flags = c("overwrite"),
-          parameters = list(
-            input = "roads",
-            type = "line",
-            output = "roads_r",
-            use = "val",
-            value =dem@grid@cellsize[1]/1000
-          ))
-
+# 
+# 
+# # calculate down stream gradient from dem and drainage
+# print("Calculating stream gradient from drainage ...")
+# execGRASS("r.stream.slope",flags = c("overwrite"),
+#           parameters = list(
+#             direction = "drain",
+#             elevation = dem_name,
+#             gradient = "gradt"
+#           ))
+# 
+# #Mask gradient data to vector stream network
+# execGRASS("r.mask",flags = c("overwrite"),
+#           parameters = list(
+#             raster = "streams_r"
+#           ))
+# 
+# 
+# #Run mapcalc on gradiant raster, and Landsat Brightness Temp with stream mask active 
+# execGRASS("r.mapcalc", flags = c("overwrite"),
+#           parameters = list(
+#             expression = "gradt_ds = gradt"
+#           ))
+# 
+# execGRASS("r.mapcalc", flags = c("overwrite"),
+#           parameters = list(
+#             expression = "lstst = lst"
+#           ))
+# 
+# #Deactivate stream mask
+# execGRASS("r.mask", flags = c("r"))
+# 
+# 
+# #Mask Landsat-8 Brightness Temp to lakes 
+# execGRASS("r.mask",flags = c("overwrite"),
+#           parameters = list(
+#             vector = "lakes"
+#           ))
+# 
+# #Run mapcalc on gradiant raster with stream mask active 
+# execGRASS("r.mapcalc", flags = c("overwrite"),
+#           parameters = list(
+#             expression = "lstlk = lst"
+#           ))
+# 
+# #Deactivate lake mask
+# execGRASS("r.mask", flags = c("r"))
+# 
+# 
+# print("Converting roads to raster ...")
+# dem <- readRAST("dem", ignore.stderr = TRUE)
+# execGRASS("v.to.rast", flags = c("overwrite"),
+#           parameters = list(
+#             input = "roads",
+#             type = "line",
+#             output = "roads_r",
+#             use = "val",
+#             value =dem@grid@cellsize[1]/1000
+#           ))
+# 
 
 
 #### Aggregate attributes by segment, add external attributes as needed below ####
 
 #A vector (points) map 'sites' is derived and several attributes are assigned.
 #See params.
-print("Computing site attributes, this may take a while ...")
-if(pred_sites=="interval")
-{
+# print("Computing site attributes, this may take a while ...")
+# if(pred_sites=="interval")
+# {
   calc_sites(maxdist = 500)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
   
-  restrict_network("sites",keep_netIDs = unique(sites$netID))
+  restrict_network("sites", keep_netIDs = unique(sites$netID))
+  
+  #THROWS ERROR 
+  # Original edges moved to edges_o.
+  # Deleting edges with netIDs other than NA ...
+  # Warning message:
+  # In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
+  # running command 'v.extract.exe --overwrite --quiet input=edges_o output=edges type=line where="netID IN (NA)"' had status 1
   
   #Need to specify netIDs, for if sites exist in other basins
   #See params
   print("Computing prediction site attributes, this may take a while ...")
   calc_prediction_sites(predictions = "preds_o", dist = pred_dist, netIDs = unique(sites$netID))
   
+  # THROWS ERROR
+  
+  # Error in .checkTypos(e, names_x) : 
+  # Object 'netID' not found amongst offset
+  # In addition: Warning messages:
+  # 1: In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
+  #    running command 'db.select.exe sql="select cat, stream, next_str, prev_str01,prev_str02,netID,Length from edges"' had status 1
+  # 2: In `[.data.table`(dt.streams, , `:=`(names(dt.streams), lapply(.SD,  :
+  #    length(LHS)==0; no columns to delete or assign RHS to.
   
   
 }else if(pred_sites=="provided"){
@@ -332,7 +358,8 @@ if(pred_sites=="interval")
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
+calc_the project the pr
+attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
                       stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
                       attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
                       input_vector = c("watrbod","cutblk","fires"),

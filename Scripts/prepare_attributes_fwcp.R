@@ -57,7 +57,11 @@ bcalb<-"+proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=
 
 ####Load and write primary DEM####
 dem <- raster::raster(dem_pth)
+
+raster::projection(dem)
 raster::compareCRS(raster::crs(dem),bcalb)==F
+dem<-projectRaster(dem,crs=bcalb)
+plot(dem)
 raster::writeRaster(dem, filename = 'Data/DEM/dem.tif',overwrite=T)
 
 
@@ -69,15 +73,16 @@ sf::write_sf(sites,"Data/Sites/sites.gpkg",overwrite=T)
 
 
 #### Load and write krige map - check proj
-interp_temp <- read_stars(temp_pth)
-st_crs(interp_temp)
-interp_temp <- interp_temp %>%
-  st_transform(crs = 3005)
-write_stars(interp_temp,"C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
+interp_temp <- raster::raster(temp_pth)
+raster::projection(interp_temp)
+raster::compareCRS(raster::crs(interp_temp),bcalb)==F
+interp_temp<-projectRaster(interp_temp,crs=bcalb)
 
+plot(interp_temp)
+raster::writeRaster(interp_temp, filename = 'Data/FieldObs/interp_temp.tif',overwrite=T)
 
 ####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
-
+bcdc_browse("freshwater-atlas")
              
 # Below is code I used to get streams layer - can't write to .shp because of 
 # the column names.... so using .gpkg
@@ -121,5 +126,4 @@ mapView(stream_vect)
 stream_vect<-sf::st_read(stream_pth)
 st_crs(stream_vect)!=st_crs(bcalb)
 sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp'))
-             
-             
+
