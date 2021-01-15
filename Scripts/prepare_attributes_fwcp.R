@@ -82,7 +82,6 @@ plot(interp_temp)
 raster::writeRaster(interp_temp, filename = 'Data/FieldObs/interp_temp.tif',overwrite=T)
 
 ####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
-bcdc_browse("freshwater-atlas")
              
 # Below is code I used to get streams layer - can't write to .shp because of 
 # the column names.... so using .gpkg
@@ -126,4 +125,38 @@ mapView(stream_vect)
 stream_vect<-sf::st_read(stream_pth)
 st_crs(stream_vect)!=st_crs(bcalb)
 sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp'))
+
+#Grab freshwater atlas stream data for 'Watershed_Group_Code' from BC data warehouse, crop to extent
+
+FWA_Stream<-bcdata::bcdc_query_geodata('92344413-8035-4c08-b996-65a9b3f62fca', crs = 3005) %>%
+  bcdata::filter(INTERSECTS(e_sf)) %>%
+  bcdata::collect() %>%
+  dplyr::select(geometry)
+
+if(st_crs(FWA_Stream)!=st_crs(bcalb))
+{
+  FWA_Stream<-sf::st_transform(FWA_Stream,bcalb)
+}
+
+print("Cropping stream network to extent ...")
+#Crop FWA stream network to extent 
+FWA_Stream<-FWA_Stream %>% sf::st_crop(e)
+
+#Peak
+#ggplot(FWA_Stream)+geom_sf()
+
+#Write to stream network to openSTARS data dir
+print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
+sf::write_sf(FWA_Stream,paste('Data/Streams/fresh_water_atlas.shp',sep = ""))
+}else{
+  stream_vect<-sf::st_read(stream_pth)
+  
+  if(st_crs(stream_vect)!=st_crs(bcalb))
+  {
+    stream_vect<-sf::st_transform(stream_vect,bcalb)
+  }
+  
+  print("Writing stream network to 'Data/Streams/fresh_water_atlas.shp'")
+  sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp',sep = ""),delete_layer=T)
+}
 

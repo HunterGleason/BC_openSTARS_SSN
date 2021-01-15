@@ -37,7 +37,7 @@ stream_path<-"Data/Streams/fresh_water_atlas.shp"
 r_pred_paths<- c("C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
                      
 #Make raster covar names shp file friendly 
-r_pred_names<-c('mavTmp')
+r_pred_names<-c('avTmp')
 
 #Prompt user for accumulation threshold to use for deriving stream network 
 accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
@@ -46,6 +46,7 @@ accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold 
 
 min_strm_lngth<-strtoi(readline(prompt = "Please enter minimum stream length in number of DEM raster cells; shorter first order stream segments are deleted, typically set to zero.: "))
 
+# put burn as 1m
 #Prompt user for depth to burn DEM 
 burn_m<-strtoi(readline(prompt = "How many meters should the Freshwater Atlas streams layer be burned into the DEM? Typically 0-5m. Leave blank if streams should be derived solely from DEM.: "))
 
@@ -94,8 +95,8 @@ check_projection(r_pred_paths)
 # {
   import_data(dem = dem_path, 
               sites = sites_path,
-              predictor_raster =r_pred_paths, 
-              predictor_r_names =r_pred_names,
+              predictor_raster = r_pred_paths, 
+              predictor_r_names = r_pred_names,
               streams = stream_path, 
               snap_streams = T)
 # }else{
@@ -122,6 +123,13 @@ check_projection(r_pred_paths)
 # }else{
   derive_streams(burn = burn_m, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
 # }
+  
+  dem <- readRAST("dem", ignore.stderr = TRUE)
+  streams <- readVECT("streams_v", ignore.stderr = TRUE)
+  plot(dem, col = terrain.colors(20))
+  lines(streams, col = "blue")
+  cols <- colorRampPalette(c("blue", "red"))(length(sites$value))[rank(sites$value)]
+  points(sites, pch = 16, col = cols)
 
 # Check and correct complex junctions 
 # print("Checking for and correcting complex junctions, this may take a while ...")
@@ -144,6 +152,8 @@ cj <- check_compl_confluences()
 #No params.
 print("Computing stream edge attributes, this may take a while ...")
 calc_edges()
+edges <- readVECT("edges", ignore.stderr = TRUE)
+head(edges@data, n = 4)
 
 #Error message from calc_edges()
 # Calculating reach contributing area (RCA) ...
@@ -163,15 +173,15 @@ calc_edges()
 #   dem_name<-paste('dem_cond_burn',burn_m,sep="")
 # }
 
-# # calculate slope and aspect from DEM as an input attribute
-# print("Computing slope and aspect from DEM ...")
-# execGRASS("r.slope.aspect", flags = c("overwrite"),
-#           parameters = list(
-#             elevation = dem_name,
-#             slope = "slope",
-#             aspect = "aspect"
-#           ))
-# 
+# calculate slope and aspect from DEM as an input attribute
+print("Computing slope and aspect from DEM ...")
+execGRASS("r.slope.aspect", flags = c("overwrite"),
+          parameters = list(
+            elevation = dem_name,
+            slope = "slope"
+            #aspect = "aspect"
+          ))
+
 # 
 # #calculate total solar irradiance for the ~15th of month, should ~ average solar input for the month ...
 # print("Computing total solar irradiance for the 15th day of month, this may take a while ...")
@@ -312,6 +322,8 @@ execGRASS("r.watershed",flags = c("overwrite"),
   calc_sites(maxdist = 500)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
+  head(sites@data, n = 4)
+  
   
   restrict_network("sites", keep_netIDs = unique(sites$netID))
   
@@ -338,51 +350,63 @@ execGRASS("r.watershed",flags = c("overwrite"),
   #    length(LHS)==0; no columns to delete or assign RHS to.
   
   
-}else if(pred_sites=="provided"){
-  #Compute the local pred_sites
-  print("Computing prediction site attributes, this may take a while ...")
-  calc_sites(maxdist=500, predictions="preds_o")
-  sites <- readVECT("sites", ignore.stderr = TRUE)
-  restrict_network("sites",keep_netIDs = unique(sites$netID))
-  
-} else {
-  print("Not computing prediction sites ...")
-  calc_sites(maxdist = 500)
-  
-  sites <- readVECT("sites", ignore.stderr = TRUE)
-  
-  restrict_network("sites",keep_netIDs = unique(sites$netID))
-}
-
+# }else if(pred_sites=="provided"){
+#   #Compute the local pred_sites
+#   print("Computing prediction site attributes, this may take a while ...")
+#   calc_sites(maxdist=500, predictions="preds_o")
+#   sites <- readVECT("sites", ignore.stderr = TRUE)
+#   restrict_network("sites",keep_netIDs = unique(sites$netID))
+#   
+# } else {
+#   print("Not computing prediction sites ...")
+#   calc_sites(maxdist = 500)
+#   
+#   sites <- readVECT("sites", ignore.stderr = TRUE)
+#   
+#   restrict_network("sites",keep_netIDs = unique(sites$netID))
+# }
+# 
 
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_the project the pr
-attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
-                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
-                      attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
-                      input_vector = c("watrbod","cutblk","fires"),
-                      stat_vect = c('percent','percent','percent'),
-                      attr_name_vect = c('WBT','Age','Age'),
-                      round_dig = 5)
+calc_attributes_edges(input_raster = c('dem','slope','mavTmp'), 
+                      stat_rast = c('mean','mean','mean'), 
+                      attr_name_rast = c('avEle','avSlo','mavTmp')
+                      #input_vector = c("watrbod","cutblk","fires"),
+                      #stat_vect = c('percent','percent','percent'),
+                      #attr_name_vect = c('WBT','Age','Age'),
+                      #round_dig = 5
+                 )
 
+## THROWS ERROR
+
+# Intersecting raster maps ...
+# Error in merge.data.table(dt.streams, rca_cell_count, by.x = "stream",  : 
+#   Elements listed in `by.x` must be valid column names in x.
+# In addition: Warning messages:
+#  1: In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
+#    running command 'db.select.exe sql="select stream, next_str, prev_str01, prev_str02, netID from edges"' had status 1
+#  2: In `[.data.table`(dt.streams, , `:=`(names(dt.streams), lapply(.SD,  :
+#    length(LHS)==0; no columns to delete or assign RHS to.
+#  3: In merge.data.table(dt.streams, rca_cell_count, by.x = "stream",  :
+#   You are trying to join data.tables where 'x' argument is 0 columns data.table.
 
 #!!!!!!Need to address issue of when no glaciers, lakes or wetlands are present, also issue with cutblocks and fires !!!!!!!!
-
-wtrbods <- readVECT('watrbod', ignore.stderr = TRUE)
-wtrbods <- c('L','W','G') %in% as.vector(unique(wtrbods@data$WBT))
-
-cutblks <- readVECT('cutblk', ignore.stderr = TRUE)
-cutblks <- c('NewCB','OldCB','RgrwSCB','RgrwYCB') %in% as.vector(unique(cutblks@data$Age))
-
-fires <- readVECT('fires', ignore.stderr = TRUE)
-fires <- c('NewF','OldF','RgrwSF','RgrwYF') %in% as.vector(unique(fires@data$Age))
-
-vec_att_names<-c('L','W','G','NewCB','OldCB','RgrwSCB','RgrwYCB','NewF','OldF','RgrwSF','RgrwYF')[c(wtrbods,cutblks,fires)]
-vec_out_names<-c('LA','WA','GA','NewCBA','OldCBA','RgrwSCBA','RgrwYCBA','NewFA','OldFA','RgrwSFA','RgrwYFA')[c(wtrbods,cutblks,fires)]
-vec_stats<-c('percent','percent','percent','percent','percent','percent','percent','percent','percent','percent','percent')[c(wtrbods,cutblks,fires)]
-
+# 
+# wtrbods <- readVECT('watrbod', ignore.stderr = TRUE)
+# wtrbods <- c('L','W','G') %in% as.vector(unique(wtrbods@data$WBT))
+# 
+# cutblks <- readVECT('cutblk', ignore.stderr = TRUE)
+# cutblks <- c('NewCB','OldCB','RgrwSCB','RgrwYCB') %in% as.vector(unique(cutblks@data$Age))
+# 
+# fires <- readVECT('fires', ignore.stderr = TRUE)
+# fires <- c('NewF','OldF','RgrwSF','RgrwYF') %in% as.vector(unique(fires@data$Age))
+# 
+# vec_att_names<-c('L','W','G','NewCB','OldCB','RgrwSCB','RgrwYCB','NewF','OldF','RgrwSF','RgrwYF')[c(wtrbods,cutblks,fires)]
+# vec_out_names<-c('LA','WA','GA','NewCBA','OldCBA','RgrwSCBA','RgrwYCBA','NewFA','OldFA','RgrwSFA','RgrwYFA')[c(wtrbods,cutblks,fires)]
+# vec_stats<-c('percent','percent','percent','percent','percent','percent','percent','percent','percent','percent','percent')[c(wtrbods,cutblks,fires)]
+# 
 
 #### Compute basin covariate attributes by site####
 
