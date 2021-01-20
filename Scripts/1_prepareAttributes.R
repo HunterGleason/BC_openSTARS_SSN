@@ -63,22 +63,22 @@ calc_rcp<-readline(prompt="Please enter if you wish to also calculate RCP monthl
 print("Loading and cropping DEM ...")
 if(dem_pth!="")
 {
-  dem <- raster::raster(dem_pth)
+  aoi_dem <- raster::raster(dem_pth)
 }else{
   #Waiting for CDED package 
   #dem <- cded_get(e_sf)
 }
 
 #Project DEM if necessary
-if(raster::compareCRS(raster::crs(dem),bcalb)==F)
+if(raster::compareCRS(raster::crs(aoi_dem),bcalb)==F)
 {
-  dem<-projectRaster(dem,crs=bcalb)
+  aoi_dem<-projectRaster(aoi_dem,crs=bcalb)
 }
 
 #Crop to aoi extent if necessary
-if(extent(dem)!=extent(e))
+if(extent(aoi_dem)!=extent(e))
 {
-  aoi_dem<-raster::crop(dem,e)
+  aoi_dem<-raster::crop(aoi_dem,e)
 }
 
 #Write DEM to openSTARS DEM data directory 
