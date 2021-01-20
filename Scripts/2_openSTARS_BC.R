@@ -253,7 +253,7 @@ execGRASS("r.mask",flags = c("overwrite"),
 print("Generate solar input along streams buffer ...")
 execGRASS("r.mapcalc",flags = c("overwrite"),
           parameters = list(
-            expression="totirra_strm = totirra_adj"
+            expression="totirra_strm = totirra"
           ))
 
 
@@ -383,7 +383,7 @@ if(pred_sites=="interval")
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
+calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
                       stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
                       attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
                       input_vector = c("watrbod","cutblk","fires"),
