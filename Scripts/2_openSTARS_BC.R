@@ -121,8 +121,26 @@ system('grass76 --tmp-location XY --exec g.extension r.stream.order')
 system('grass76 --tmp-location XY --exec g.extension r.stream.slope')
 system('grass76 --tmp-location XY --exec g.extension r.hydrodem')
 
+
 rgrass7::use_sp()
-setup_grass_environment(dem = dem_path, gisBase = "/usr/lib/grass76/",location=grass_location,override=T)
+
+dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
+initGRASS(gisBase = "/usr/lib/grass76/",
+          mapset = "PERMANENT",
+          override=T)
+
+
+rgrass7::writeRAST(dem_grid,'region_dem')
+
+execGRASS("g.region", flags = c("c", "quiet"),
+          parameters = list(
+            raster ='region_dem'
+          ))
+
+execGRASS("g.proj", flags = c("c", "quiet"),
+          parameters = list(
+            georef = dem_path
+          ))
 
 
 #Check projections
