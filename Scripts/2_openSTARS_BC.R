@@ -368,7 +368,7 @@ execGRASS("v.to.rast", flags = c("overwrite"),
 print("Computing site attributes, this may take a while ...")
 if(pred_sites=="interval")
 {
-  calc_sites(maxdist = 500)
+  calc_sites(maxdist = 200)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
   
@@ -384,13 +384,13 @@ if(pred_sites=="interval")
 }else if(pred_sites=="provided"){
   #Compute the local pred_sites
   print("Computing prediction site attributes, this may take a while ...")
-  calc_sites(maxdist=500, predictions="preds_o")
+  calc_sites(maxdist=200, predictions="preds_o")
   sites <- readVECT("sites", ignore.stderr = TRUE)
   restrict_network("sites",keep_netIDs = unique(sites$netID))
   
 } else {
   print("Not computing prediction sites ...")
-  calc_sites(maxdist = 500)
+  calc_sites(maxdist = 200)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
   
@@ -401,9 +401,9 @@ if(pred_sites=="interval")
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
-                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
-                      attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
+calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
+                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
+                      attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
                       input_vector = c("watrbod","cutblk","fires"),
                       stat_vect = c('percent','percent','percent'),
                       attr_name_vect = c('WBT','Age','Age'),
@@ -432,18 +432,18 @@ if(pred_sites!="")
 {
   print("Computing covariate prediction site attributes, this might take a while ...")
   calc_attributes_sites_approx(sites_map = "preds_o", 
-                               input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                               output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
+                               input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
+                               output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
+                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
                                calc_basin_area = TRUE,
                                round_dig = 5)
 }
 
 print("Computing covariate site attributes, this might take a while ...")
 calc_attributes_sites_approx(sites_map = "sites", 
-                             input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                             output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                             stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
+                             input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
+                             output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
+                             stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
                              calc_basin_area = TRUE,
                              round_dig = 5)
 
