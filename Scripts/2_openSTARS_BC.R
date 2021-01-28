@@ -125,8 +125,9 @@ system('grass76 --tmp-location XY --exec g.extension r.hydrodem')
 rgrass7::use_sp()
 
 dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
-initGRASS(gisBase = "/usr/lib/grass76/",
-          mapset = "PERMANENT",
+initGRASS(gisBase = '/usr/lib/grass76/',
+          mapset = 'PERMANENT',
+          location = grass_location,
           override=T)
 
 
