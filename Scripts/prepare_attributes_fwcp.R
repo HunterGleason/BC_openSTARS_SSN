@@ -7,6 +7,7 @@ library(bcdata)
 library(sf)
 library(readr)
 library(stars)
+library(bcmaps)
 
 ####Declare Global Vars (REQUIRED)####
 
@@ -23,9 +24,9 @@ dem_pth <- "C:/Data/SSN/aug2020_mat_topos/parsnip.tif"
 #sites_pth<-readline(prompt = "Enter path to vector layer with stream site observations, e.g., sites_2018.gpkg: \n")
 sites_pth <- "C:/Data/SSN/aug2020_mat_topos/aug2020_wt_monthly_average.gpkg"
 #stream_pth<-readline(prompt="Enter path of a vector stream layer, or leave blank to download the BC Freshwater Atlas Layer: \n")
-stream_pth <- "C:/Data/SSN/aug2020_mat_topos/parsnip_streams.gpkg"
+stream_pth <- "C:/Data/SSN/aug2020_mat_topos_nowilliston/parsnip_streams.gpkg"
 #temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
-temp_pth <- "C:/Data/SSN/aug2020_mat_topos/air_aug_monthly_average0m.augmean [Universal Kriging].tif"
+temp_pth <- "C:/Data/SSN/aug2020_mat_topos_nowilliston/air_aug_monthly_average0m.augmean [Universal Kriging]_nowilliston.tif"
 
 #### Create directories in which to store preppred attribute layers ####
 dir.create("C:/Code/BC_openSTARS_SSN/Data")
@@ -36,7 +37,7 @@ dir.create("C:/Code/BC_openSTARS_SSN/Data/Streams")
 dir.create("C:/Code/BC_openSTARS_SSN/Data/PredVect")
 
 #Provide study extent -> vector (length=4; order= xmin, xmax, ymin, ymax)
-dem <- raster("C:/Data/SSN/aug2020_mat_topos/parsnip.tif")
+dem <- raster(dem_pth)
 crs(dem)
 e <- extent(dem)
 # e<-as.double(unlist(strsplit(readline(prompt="Enter coordinates of study extent as -> xmin,xmax,ymin,ymax, must be EPSG:3005 coordinates: "),",")))
@@ -55,22 +56,41 @@ e_sf<-sf::st_as_sfc(e_sf)
 wgs84<-"+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 bcalb<-"+proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs"
 
-####Load and write primary DEM####
-dem <- raster::raster(dem_pth)
-
-raster::projection(dem)
-raster::compareCRS(raster::crs(dem),bcalb)==F
-dem<-projectRaster(dem,crs=bcalb)
-plot(dem)
-raster::writeRaster(dem, filename = 'Data/DEM/dem.tif',overwrite=T)
-
 
 ####Load and write stream site observations ####
 
 sites<-st_read(sites_pth)
 st_crs(sites)!=st_crs(bcalb)
-sf::write_sf(sites,"Data/Sites/sites.gpkg",overwrite=T)
+sf::write_sf(sites,"Data/Sites/sites.shp",overwrite=T)
 
+
+####Load and write primary DEM####
+#read in manually prepared DEM
+dem <- raster::raster(dem_pth)
+raster::projection(dem)
+raster::compareCRS(raster::crs(dem),bcalb, unknown = T)
+dem <- raster::projectRaster(dem,crs=bcalb)
+plot(dem)
+raster::writeRaster(dem, filename = 'Data/DEM_manual/dem.tif',overwrite=T)
+
+# extract dem using bcmaps::cded_raster
+
+memory.limit(50000)
+bbox <- st_bbox(sites)
+aoi <- st_as_sfc(bbox)
+aoi_buf <- st_buffer(aoi, dist = 20000)
+aoi_raster <- cded_raster(aoi_buf)
+  
+plot(aoi_raster)
+raster::crs(aoi_raster)
+aoi_raster <- projectRaster(aoi_raster,crs=bcalb)
+raster::compareCRS(raster::crs(x),bcalb, unknown = T)
+plot(aoi_raster)
+raster::writeRaster(aoi_raster, filename = 'Data/DEMgeo/dem.gtif', format = 'GTiff', overwrite=T)
+
+
+x <- raster('Data/DEMgeo/dem.tif')
+raster::crs(x)
 
 #### Load and write krige map - check proj
 interp_temp <- raster::raster(temp_pth)
@@ -95,10 +115,10 @@ library(mapview)
              
              
 wshed <- fwa_collection("whse_basemapping.fwa_named_watersheds_poly", 
-                                     filter = list(gnis_name = "Parsnip River"))
+                                     filter = list(gnis_name = "Anzac River"))
 bbox <- sf::st_bbox(wshed)
              
-stream_orders <- 3:9
+stream_orders <- 3:8
 all <- do.call(rbind, lapply(stream_orders, function(x){
                message(glue::glue("getting stream order {x}"))
                fwa_collection("whse_basemapping.fwa_stream_networks_sp", 
@@ -107,24 +127,21 @@ all <- do.call(rbind, lapply(stream_orders, function(x){
                               limit = 10000)
              }))
              
-parsnip <- sf::st_intersection(all, wshed)
+anzac <- sf::st_intersection(all, wshed)
              
 mapview(parsnip)
              
-             
-parsnip <- parsnip %>%
-      st_transform(crs = 3005)
-             
-stream_vect <- parsnip
 
-stream_vect <- stream_vect %>%
+stream_vect <- parsnip %>%
+  st_transform(crs = 3005) %>%
   select(gradient, length_metre, geometry)
 
 mapView(stream_vect)
 
-stream_vect<-sf::st_read(stream_pth)
 st_crs(stream_vect)!=st_crs(bcalb)
-sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp'))
+sf::st_write(stream_vect,paste('Data/Streams/fresh_water_atlas.shp'))
+
+####Get Stream Network from freshwater atlas, this layer is used for burning the DEM (REQUIRED)####
 
 #Grab freshwater atlas stream data for 'Watershed_Group_Code' from BC data warehouse, crop to extent
 
@@ -160,3 +177,78 @@ sf::write_sf(FWA_Stream,paste('Data/Streams/fresh_water_atlas.shp',sep = ""))
   sf::write_sf(stream_vect,paste('Data/Streams/fresh_water_atlas.shp',sep = ""),delete_layer=T)
 }
 
+####Generate a combined freshwater-atlas water bodies layer, using lakes, wetlands and glaciers defined by WATERBODY_TYPE (OPTIONAL)####
+
+##Grab freshwater atlas glacier data for 'Watershed_Group_Code' from BC data warehouse, crop to extent##
+#List likely glacier layers, and pull desired layer, or...
+#poss_glac<-bcdata::bcdc_list()
+#poss_glac[stringr::str_detect(poss_glac,"glaciers")]
+
+print("Downloading Freshwater Atlas glaciers ...")
+FWA_Glaciers<-bcdc_query_geodata('8f2aee65-9f4c-4f72-b54c-0937dbf3e6f7', crs = 3005) %>%
+  bcdata::filter(INTERSECTS(e_sf)) %>%
+  bcdata::collect()
+
+print("glaciers to extent ...")
+FWA_Glaciers<-FWA_Glaciers %>% 
+  sf::st_crop(e) %>%
+  dplyr::select(WATERBODY_TYPE)
+
+
+
+##Grab freshwater atlas wetlands data for 'Watershed_Group_Code' from BC data warehouse, crop to extent###
+#List likley wetlands layers, and pull desired layer, or...
+#poss_wetl<-bcdata::bcdc_list()
+#poss_wetl[stringr::str_detect(poss_wetl,"wetland")]
+
+print("Downloading Freshwater Atlas wetlands ...")
+FWA_Wetlands<-bcdc_query_geodata("93b413d8-1840-4770-9629-641d74bd1cc6", crs = 3005) %>%
+  bcdata::filter(INTERSECTS(e_sf)) %>%
+  bcdata::collect()
+
+print("Cropping wetlands to extent ...")
+FWA_Wetlands<-FWA_Wetlands %>% 
+  sf::st_crop(e) %>%
+  dplyr::select(WATERBODY_TYPE)
+
+
+
+##Grab freshwater atlas lakes data for 'Watershed_Group_Code' from BC data warehouse, crop to extent##
+#List likley lakes layers, and pull desired layer, or...
+#poss_lake<-bcdata::bcdc_list()
+#[stringr::str_detect(poss_lake,"lake")]
+
+
+print("Downloading Freshwater Atlas lakes ...")
+FWA_Lakes<-bcdc_query_geodata("cb1e3aba-d3fe-4de1-a2d4-b8b6650fb1f6", crs = 3005) %>%
+  bcdata::filter(INTERSECTS(e_sf)) %>%
+  bcdata::collect()
+
+print("Cropping lakes to extent ...")
+FWA_Lakes<-FWA_Lakes %>% 
+  sf::st_crop(e) %>%
+  dplyr::select(WATERBODY_TYPE)
+
+
+#Combine the three diffrent water body layers
+print("joining waterbodies ...")
+waterbods <-rbind(as.data.frame(FWA_Lakes),as.data.frame(FWA_Wetlands),as.data.frame(FWA_Glaciers))
+
+#Rename water body type to 'WBT'
+colnames(waterbods)[1]<-'WBT'
+
+#Convert back to sf
+waterbods <- st_as_sf(waterbods)
+
+#ggplot()+geom_sf(data=FWA_Stream)+geom_sf(data=waterbods,aes(fill = WBT))
+
+
+if(st_crs(waterbods)!=st_crs(bcalb))
+{
+  waterbods<-sf::st_transform(waterbods,bcalb)
+}
+
+
+#Write water bodies layer to openSTARS dir
+print("Writing Freswater Atlas waterbodies layer to 'Data/PredVect/fresh_water_atlas_waterbods.shp'")
+sf::write_sf(waterbods, paste('Data/PredVect/fresh_water_atlas_waterbods.shp',sep = ""))

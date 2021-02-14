@@ -1,19 +1,13 @@
 # reinstall dev version devtools::install_github("MiKatt/openSTARS", ref = "dev")
 
-#Import the openSTARS library
-library(devtools)
+#Import the openSTARS library 
 library(openSTARS)
+library(rgrass7)
 library(rgdal)
 library(sf)
 library(sp)
 library(parallel)
 library(dplyr)
-
-#Prompt user to define computation resources to allocate. 
-cpu <- as.numeric(readline(prompt="Enter percentage (0-100) CPU to allocate: "))
-
-#Can Change based on computing resources 
-data.table::setDTthreads(percent = cpu)
 
 ####Set Global Vars####
 
@@ -21,12 +15,12 @@ data.table::setDTthreads(percent = cpu)
 ssn_dir <- paste("SSN/",readline(prompt="Please enter the desired name of the output SNN object, e.g., bowron.ssn: "),sep="")
 
 #Path to DEM 
-dem_path<-"HuntData/parsnip_3005.tif"
+dem_path<-"BC_openSTARS_SSN/HuntData/parsnip_3005.tif"
 
 #Path to observed stream sites.
-sites_path <- "HuntData/parsnip_sites_bcalb.shp"
+sites_path <- "BC_openSTARS_SSN/HuntData/parsnip_sites_bcalb.shp"
 
-repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
+#repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
 
 #Enter distance of predictions site for auto generation
 pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at which to generate prediction sites in meters: "))
@@ -42,25 +36,25 @@ pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at whic
 
 
 #Path to freshwater-atlas stream network
-stream_path<-"Data/Streams/fresh_water_atlas.shp"
+#stream_path<-"Data/Streams/fresh_water_atlas.shp"
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 #Enter path to gridded air temp
-r_pred_paths<- c("C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
-                     
+#r_pred_paths<- c("C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
+
 #Make raster covar names shp file friendly 
-r_pred_names<-c('airTmp')
+#r_pred_names<-c('avTmp')
 
 #Prompt user for accumulation threshold to use for deriving stream network 
-accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
+#accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
 
 #Prompt user for desired minimum stream length. 
 
-min_strm_lngth<-strtoi(readline(prompt = "Please enter minimum stream length in number of DEM raster cells; shorter first order stream segments are deleted, typically set to zero.: "))
+#min_strm_lngth<-strtoi(readline(prompt = "Please enter minimum stream length in number of DEM raster cells; shorter first order stream segments are deleted, typically set to zero.: "))
 
 
 #Prompt user for depth to burn DEM 
-burn_m<-strtoi(readline(prompt = "How many meters should the Freshwater Atlas streams layer be burned into the DEM? Typically 0-5m. Leave blank if streams should be derived solely from DEM.: "))
+#burn_m<-strtoi(readline(prompt = "How many meters should the Freshwater Atlas streams layer be burned into the DEM? Typically 0-5m. Leave blank if streams should be derived solely from DEM.: "))
 
 # 
 # #Monthly DOY centres, used for estimating monthly average solar input 
@@ -84,38 +78,36 @@ system('grass76 --tmp-location XY --exec g.extension r.hydrodem')
 
 rgrass7::use_sp()
 
-gisBase <- "C:/Program Files/GRASS GIS 7.6"
-grass_db_path <- file.path("C:/Code/BC_openSTARS_SSN", "grassDB")
-
+#gisBase <- "C:/Program Files/GRASS GIS 7.6"
+#grass_db_path <- file.path("C:/Code/BC_openSTARS_SSN", "grassDB")
 #initGRASS(gisBase = gisBase, location=grass_location, remove_GISRC = T, override = T)
+#setup_grass_environment(dem = dem_path, gisBase = gisBase, gisDbase = grass_db_path, location = grass_location, remove_GISRC = T, override = T)
 
-setup_grass_environment(dem = dem_path, gisBase = gisBase, gisDbase = grass_db_path, location = grass_location, remove_GISRC = T, override = T)
+dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
+initGRASS(gisBase = '/usr/lib/grass76/',
+          mapset = 'PERMANENT',
+          location = grass_location,
+          override=T)
+
+
+rgrass7::writeRAST(dem_grid,'region_dem')
+
+execGRASS("g.region", flags = c("c", "quiet"),
+          parameters = list(
+            raster ='region_dem'
+          ))
+
+execGRASS("g.proj", flags = c("c", "quiet"),
+          parameters = list(
+            georef = dem_path
+          ))
 
 gmeta()
 
-# dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
-# initGRASS(gisBase = gisBase,
-#           mapset = 'PERMANENT',
-#           location = grass_location,
-#           override=T)
-# 
-# 
-# rgrass7::writeRAST(dem_grid,'region_dem')
-# 
-# execGRASS("g.region", flags = c("c", "quiet"),
-#           parameters = list(
-#             raster ='region_dem'
-#           ))
-# 
-# execGRASS("g.proj", flags = c("c", "quiet"),
-#           parameters = list(
-#             georef = dem_path
-#           ))
-
 
 #Check projections
-print("Checking projections ... ")
-check_projection(r_pred_paths)
+#print("Checking projections ... ")
+#check_projection(r_pred_paths)
 
 
 #This function loads a DEM (digital elevation model) and sites data (both required) into the 'GRASS' session. 
@@ -126,12 +118,12 @@ check_projection(r_pred_paths)
 # print("Importing data into GRASS ...")
 # if(pred_sites=="" | pred_sites=="interval")
 # {
-  import_data(dem = dem_path, 
-              sites = sites_path)
-              predictor_raster = r_pred_paths, 
-              predictor_r_names = r_pred_names)
-              streams = stream_path, 
-              snap_streams = T)
+import_data(dem = dem_path, 
+            sites = sites_path)
+# predictor_raster = r_pred_paths, 
+# predictor_r_names = r_pred_names)
+# streams = stream_path, 
+# snap_streams = T)
 # }else{
 #   import_data(dem = dem_path, 
 #               sites = sites_path,
@@ -152,11 +144,11 @@ check_projection(r_pred_paths)
 print("Deriving streams, this may take a while ...")
 # if(burn_m=="")
 # {
-   derive_streams(burn = 0, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth, condition = TRUE, clean = TRUE)
+derive_streams(burn = 0, accum_threshold = 2000, min_stream_length = 0, condition = TRUE, clean = TRUE)
 # }else{
-  #derive_streams(burn = burn_m, accum_threshold = accum_thresh, condition = T, clean = TRUE)
+#derive_streams(burn = burn_m, accum_threshold = accum_thresh, condition = T, clean = TRUE)
 # }
-  
+
 # dem <- readRAST("dem", ignore.stderr = TRUE)
 # streams <- readVECT("streams_v", ignore.stderr = TRUE)
 # sites <- readVECT("sites_o", ignore.stderr = TRUE) 
@@ -166,12 +158,12 @@ print("Deriving streams, this may take a while ...")
 # points(sites, pch = 16, col = "red")
 
 # Check and correct complex junctions 
- print("Checking for and correcting complex junctions, this may take a while ...")
+print("Checking for and correcting complex junctions, this may take a while ...")
 cj <- check_compl_confluences()
 # if(cj){
-   print("Correcting Stream Junctions ...")
+print("Correcting Stream Junctions ...")
 
-   correct_compl_confluences()
+correct_compl_confluences()
 # }
 
 # lakes <- readVECT("watrbod", ignore.stderr = TRUE)
@@ -187,35 +179,27 @@ cj <- check_compl_confluences()
 #No params.
 print("Computing stream edge attributes, this may take a while ...")
 calc_edges()
-                                                  # 
-# > calc_edges()
-# WARNING: Vector map <edges> already exists and will be overwritten
-# Calculating reach contributing area (RCA) ...
-# Calculating upstream catchment areas ...
-# Error in `[.data.table`(dt, stream == id, `:=`(total_area, a1 + a2 + dt[stream ==  : 
-#   Supplied 2 items to be assigned to 1 items of column 'total_area'. If you wish to 'recycle' the RHS please use rep() to make this intent clear to readers of your code.
-# In addition: Warning message:
-# In if (dt[stream == id, prev_str01, ] == 0) { :
-# the condition has length > 1 and only the first element will be used
+
 
 edges <- readVECT("edges", ignore.stderr = TRUE)
 head(edges@data, n = 4)
 
 #### Calculate DEM derivative layers for use and model inputs using rgrass7 ####
-if(burn_m==0)
-{
-  dem_name<-'dem_cond'
-}else{
-  dem_name<-paste('dem_cond_burn',burn_m,sep="")
-}
+#if(burn_m==0)
+#{
+dem_name<-'dem_cond'
+#}else{
+#  dem_name<-paste('dem_cond_burn',burn_m,sep="")
+#}
 
 # calculate slope and aspect from DEM as an input attribute
-print("Computing slope and aspect from DEM ...")
+
+#print("Computing slope and aspect from DEM ...")
 execGRASS("r.slope.aspect", flags = c("overwrite"),
           parameters = list(
             elevation = dem_name,
-            slope = "slope"
-            #aspect = "aspect"
+            slope = "slope",
+            aspect = "aspect"
           ))
 
 # 
@@ -290,25 +274,26 @@ execGRASS("r.watershed",flags = c("overwrite"),
 # 
 # # calculate down stream gradient from dem and drainage
 # print("Calculating stream gradient from drainage ...")
-# execGRASS("r.stream.slope",flags = c("overwrite"),
-#           parameters = list(
-#             direction = "drain",
-#             elevation = dem_name,
-#             gradient = "gradt"
-#           ))
+execGRASS("r.stream.slope",flags = c("overwrite"),
+          parameters = list(
+            direction = "drain",
+            elevation = dem_name,
+            gradient = "gradt"
+          ))
+
 # 
 # #Mask gradient data to vector stream network
-# execGRASS("r.mask",flags = c("overwrite"),
-#           parameters = list(
-#             raster = "streams_r"
-#           ))
+execGRASS("r.mask",flags = c("overwrite"),
+          parameters = list(
+            raster = "streams_r"
+          ))
 # 
 # 
 # #Run mapcalc on gradiant raster, and Landsat Brightness Temp with stream mask active 
-# execGRASS("r.mapcalc", flags = c("overwrite"),
-#           parameters = list(
-#             expression = "gradt_ds = gradt"
-#           ))
+execGRASS("r.mapcalc", flags = c("overwrite"),
+          parameters = list(
+            expression = "gradt_ds = gradt"
+          ))
 # 
 # execGRASS("r.mapcalc", flags = c("overwrite"),
 #           parameters = list(
@@ -316,7 +301,7 @@ execGRASS("r.watershed",flags = c("overwrite"),
 #           ))
 # 
 # #Deactivate stream mask
-# execGRASS("r.mask", flags = c("r"))
+execGRASS("r.mask", flags = c("r"))
 # 
 # 
 # #Mask Landsat-8 Brightness Temp to lakes 
@@ -355,38 +340,22 @@ execGRASS("r.watershed",flags = c("overwrite"),
 # print("Computing site attributes, this may take a while ...")
 # if(pred_sites=="interval")
 # {
-  calc_sites(maxdist = 100)
-   
-  sites <- readVECT("sites", ignore.stderr = TRUE)
- 
-   head(sites@data, n = 4)
-  
-  
-  restrict_network("sites", keep_netIDs = unique(sites$netID))
-  
-  #THROWS ERROR 
-  # Original edges moved to edges_o.
-  # Deleting edges with netIDs other than NA ...
-  # Warning message:
-  # In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
-  # running command 'v.extract.exe --overwrite --quiet input=edges_o output=edges type=line where="netID IN (NA)"' had status 1
-  
-  #Need to specify netIDs, for if sites exist in other basins
-  #See params
-  print("Computing prediction site attributes, this may take a while ...")
-  calc_prediction_sites(predictions = "preds_o", dist = pred_dist, netIDs = unique(sites$netID))
-  
-  # THROWS ERROR
-  
-  # Error in .checkTypos(e, names_x) : 
-  # Object 'netID' not found amongst offset
-  # In addition: Warning messages:
-  # 1: In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
-  #    running command 'db.select.exe sql="select cat, stream, next_str, prev_str01,prev_str02,netID,Length from edges"' had status 1
-  # 2: In `[.data.table`(dt.streams, , `:=`(names(dt.streams), lapply(.SD,  :
-  #    length(LHS)==0; no columns to delete or assign RHS to.
-  
-  
+calc_sites(maxdist = 120)
+
+sites <- readVECT("sites", ignore.stderr = TRUE)
+
+head(sites@data, n = 4)
+
+
+restrict_network("sites", keep_netIDs = unique(sites$netID))
+
+
+#Need to specify netIDs, for if sites exist in other basins
+#See params
+print("Computing prediction site attributes, this may take a while ...")
+calc_prediction_sites(predictions = "preds_o", dist = pred_dist, netIDs = unique(sites$netID))
+
+
 # }else if(pred_sites=="provided"){
 #   #Compute the local pred_sites
 #   print("Computing prediction site attributes, this may take a while ...")
@@ -407,27 +376,20 @@ execGRASS("r.watershed",flags = c("overwrite"),
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_attributes_edges(input_raster = c('dem','slope','mavTmp'), 
+# calc_attributes_edges(input_raster = c('dem','slope','mavTmp'), 
+#                       stat_rast = c('mean','mean','mean'), 
+#                       attr_name_rast = c('avEle','avSlo','mavTmp')
+#                       #input_vector = c("watrbod","cutblk","fires"),
+#                       #stat_vect = c('percent','percent','percent'),
+#                       #attr_name_vect = c('WBT','Age','Age'),
+#                       #round_dig = 5
+#                  )
+
+calc_attributes_edges(input_raster = c('dem','slope','gradt_ds'), 
                       stat_rast = c('mean','mean','mean'), 
-                      attr_name_rast = c('avEle','avSlo','mavTmp')
-                      #input_vector = c("watrbod","cutblk","fires"),
-                      #stat_vect = c('percent','percent','percent'),
-                      #attr_name_vect = c('WBT','Age','Age'),
-                      #round_dig = 5
-                 )
-
-## THROWS ERROR
-
-# Intersecting raster maps ...
-# Error in merge.data.table(dt.streams, rca_cell_count, by.x = "stream",  : 
-#   Elements listed in `by.x` must be valid column names in x.
-# In addition: Warning messages:
-#  1: In system(syscmd, intern = intern, ignore.stderr = ignore.stderr,  :
-#    running command 'db.select.exe sql="select stream, next_str, prev_str01, prev_str02, netID from edges"' had status 1
-#  2: In `[.data.table`(dt.streams, , `:=`(names(dt.streams), lapply(.SD,  :
-#    length(LHS)==0; no columns to delete or assign RHS to.
-#  3: In merge.data.table(dt.streams, rca_cell_count, by.x = "stream",  :
-#   You are trying to join data.tables where 'x' argument is 0 columns data.table.
+                      attr_name_rast = c('avEle','avSlo','avGrdt'),
+                      round_dig = 5
+)
 
 #!!!!!!Need to address issue of when no glaciers, lakes or wetlands are present, also issue with cutblocks and fires !!!!!!!!
 # 
@@ -447,22 +409,22 @@ calc_attributes_edges(input_raster = c('dem','slope','mavTmp'),
 
 #### Compute basin covariate attributes by site####
 
-if(pred_sites!="")
-{
-  print("Computing covariate prediction site attributes, this might take a while ...")
-  calc_attributes_sites_approx(sites_map = "preds_o", 
-                               input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                               output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
-                               calc_basin_area = TRUE,
-                               round_dig = 5)
-}
+#if(pred_sites!="")
+#{
+#  print("Computing covariate prediction site attributes, this might take a while ...")
+calc_attributes_sites_approx(sites_map = "preds_o", 
+                             input_attr_name = c('avEle','avSlo','avGrdt'),
+                             output_attr_name = c('avEleA','avSloA','avGrdtA'),
+                             stat = c('mean','mean','mean'),
+                             calc_basin_area = TRUE,
+                             round_dig = 5)
+#}
 
-print("Computing covariate site attributes, this might take a while ...")
+#print("Computing covariate site attributes, this might take a while ...")
 calc_attributes_sites_approx(sites_map = "sites", 
-                             input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                             output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                             stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
+                             input_attr_name = c('avEle','avSlo','avGrdt'),
+                             output_attr_name = c('avEleA','avSloA','avGrdtA'),
+                             stat = c('mean','mean','mean'),
                              calc_basin_area = TRUE,
                              round_dig = 5)
 
@@ -478,90 +440,86 @@ calc_attributes_sites_approx(sites_map = "sites",
 #                             round_dig = 5)
 
 ####Hunters custom merge repeated measures function####
-merge_sites_measurements_hg<-function(ssn_v)
-{
-  #Get SSN data.frame and coordinates 
-  #Get current SSN object as data.frame and coordinates 
-  cur_sites <- readVECT("sites", ignore.stderr = TRUE)
-  cur_sites_df<-as.data.frame(cur_sites@data)
-  cur_sites_coords<-as.data.frame(cur_sites@coords)
-  cur_sites_coords$site<-cur_sites_df$site
-  
-  
-  
-  merged_df<-cur_sites_df
-  merged_coords<-cur_sites_coords
-  
-  for(i in c(1:length(ssn_v)))
-  {
-    ssn_ssn<-SSN::importSSN(ssn_v[i])
-    ssn_df<-as.data.frame(SSN::getSSNdata.frame(ssn_ssn))
-    ssn_coords<-as.data.frame(slot(ssn_ssn@obspoints@SSNPoints[[1]],"point.coords"))
-    ssn_coords$site<-ssn_df$site
-    
-    merged_df<-as.data.frame(rbind(merged_df,ssn_df))
-    merged_coords<-as.data.frame(rbind(merged_coords,ssn_coords))
-  }
-  
-  #Get unique site locations 
-  uniq_site_coords<-as.data.frame(unique(merged_coords))
-  
-  
-  uniq_site_coords$locID<-c(1:nrow(uniq_site_coords))
-  
-  merged_df$coords.x1<--9999
-  merged_df$coords.x2<--9999
-  
-  for(rw in c(1:nrow(merged_df)))
-  {
-    cur_site<-merged_df$site[rw]
-    
-    merged_df$coords.x1[rw]<-uniq_site_coords$coords.x1[uniq_site_coords$site %in% cur_site]
-    merged_df$coords.x2[rw]<-uniq_site_coords$coords.x2[uniq_site_coords$site %in% cur_site]
-    merged_df$locID[rw]<-uniq_site_coords$locID[uniq_site_coords$site %in% cur_site]
-    
-  }
-  
-  merged_coords<-merged_df[,c("coords.x1","coords.x2")]
-  merged_df[,c("coords.x1","coords.x2")]<-NULL
-  
-  #Update pid and cat 
-  merged_df$pid<-c(1:nrow(merged_df))
-  merged_df$cat<-merged_df$pid
-  
-  #Replace current SSN data and coordinates with merged
-  cur_sites@data<-merged_df
-  cur_sites@coords<-as.matrix(merged_coords)
-  
-  #Write updated SSN to GRASS Env., replace 
-  writeVECT(cur_sites, "sites", v.in.ogr_flags = c("overwrite"), ignore.stderr = TRUE)
-  
-}
-
-#Add repeated measure to current SSN 
-if(repeated_meas==TRUE)
-{
-  
-  print("Merging repeated measures ... ")
-  merge_sites_measurements_hg(ssn_vec)
-  
-}
+# merge_sites_measurements_hg<-function(ssn_v)
+# {
+#   #Get SSN data.frame and coordinates 
+#   #Get current SSN object as data.frame and coordinates 
+#   cur_sites <- readVECT("sites", ignore.stderr = TRUE)
+#   cur_sites_df<-as.data.frame(cur_sites@data)
+#   cur_sites_coords<-as.data.frame(cur_sites@coords)
+#   cur_sites_coords$site<-cur_sites_df$site
+#   
+#   
+#   
+#   merged_df<-cur_sites_df
+#   merged_coords<-cur_sites_coords
+#   
+#   for(i in c(1:length(ssn_v)))
+#   {
+#     ssn_ssn<-SSN::importSSN(ssn_v[i])
+#     ssn_df<-as.data.frame(SSN::getSSNdata.frame(ssn_ssn))
+#     ssn_coords<-as.data.frame(slot(ssn_ssn@obspoints@SSNPoints[[1]],"point.coords"))
+#     ssn_coords$site<-ssn_df$site
+#     
+#     merged_df<-as.data.frame(rbind(merged_df,ssn_df))
+#     merged_coords<-as.data.frame(rbind(merged_coords,ssn_coords))
+#   }
+#   
+#   #Get unique site locations 
+#   uniq_site_coords<-as.data.frame(unique(merged_coords))
+#   
+#   
+#   uniq_site_coords$locID<-c(1:nrow(uniq_site_coords))
+#   
+#   merged_df$coords.x1<--9999
+#   merged_df$coords.x2<--9999
+#   
+#   for(rw in c(1:nrow(merged_df)))
+#   {
+#     cur_site<-merged_df$site[rw]
+#     
+#     merged_df$coords.x1[rw]<-uniq_site_coords$coords.x1[uniq_site_coords$site %in% cur_site]
+#     merged_df$coords.x2[rw]<-uniq_site_coords$coords.x2[uniq_site_coords$site %in% cur_site]
+#     merged_df$locID[rw]<-uniq_site_coords$locID[uniq_site_coords$site %in% cur_site]
+#     
+#   }
+#   
+#   merged_coords<-merged_df[,c("coords.x1","coords.x2")]
+#   merged_df[,c("coords.x1","coords.x2")]<-NULL
+#   
+#   #Update pid and cat 
+#   merged_df$pid<-c(1:nrow(merged_df))
+#   merged_df$cat<-merged_df$pid
+#   
+#   #Replace current SSN data and coordinates with merged
+#   cur_sites@data<-merged_df
+#   cur_sites@coords<-as.matrix(merged_coords)
+#   
+#   #Write updated SSN to GRASS Env., replace 
+#   writeVECT(cur_sites, "sites", v.in.ogr_flags = c("overwrite"), ignore.stderr = TRUE)
+#   
+# }
+# 
+# #Add repeated measure to current SSN 
+# if(repeated_meas==TRUE)
+# {
+#   
+#   print("Merging repeated measures ... ")
+#   merge_sites_measurements_hg(ssn_vec)
+#   
+# }
 
 
 
 
 #Export SSN object to SNN project directory
-print(paste("Exporting SSN object to ",ssn_dir,sep=""))
-if(pred_sites!="")
-{
-  export_ssn(ssn_dir,predictions='preds_o',delete_directory = TRUE)
-} else {
-  export_ssn(ssn_dir,delete_directory = TRUE)
-}
+#print(paste("Exporting SSN object to ",ssn_dir,sep=""))
+#if(pred_sites!="")
+#{
+export_ssn(ssn_dir,predictions='preds_o',delete_directory = TRUE)
+#} else {
+#  export_ssn(ssn_dir,delete_directory = TRUE)
+#}
 
 print("Checking SSN object ...")
 print(paste("SSN onject is good: ",check_ssn(ssn_dir),sep=""))
-
-
-
-
