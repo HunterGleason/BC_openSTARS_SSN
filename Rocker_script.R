@@ -340,7 +340,7 @@ execGRASS("r.mask", flags = c("r"))
 # print("Computing site attributes, this may take a while ...")
 # if(pred_sites=="interval")
 # {
-calc_sites(maxdist = 120)
+calc_sites(maxdist = 200)
 
 sites <- readVECT("sites", ignore.stderr = TRUE)
 
