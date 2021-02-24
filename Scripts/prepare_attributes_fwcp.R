@@ -26,7 +26,7 @@ sites_pth <- "C:/Data/SSN/aug2020_mat_topos/aug2020_wt_monthly_average.gpkg"
 #stream_pth<-readline(prompt="Enter path of a vector stream layer, or leave blank to download the BC Freshwater Atlas Layer: \n")
 stream_pth <- "C:/Data/SSN/aug2020_mat_topos_nowilliston/parsnip_streams.gpkg"
 #temp_pth<-readline(prompt="Please enter the path to gridded temperature data: ")
-temp_pth <- "C:/Data/SSN/aug2020_mat_topos_nowilliston/air_aug_monthly_average0m.augmean [Universal Kriging]_nowilliston.tif"
+temp_pth <- "C:/Data/SSN/aug2020_mat_topos/air_aug_monthly_average0m.augmean [Universal Kriging].tif"
 
 #### Create directories in which to store preppred attribute layers ####
 dir.create("C:/Code/BC_openSTARS_SSN/Data")
@@ -35,7 +35,7 @@ dir.create("C:/Code/BC_openSTARS_SSN/Data/Sites")
 dir.create("C:/Code/BC_openSTARS_SSN/Data/FieldObs")
 dir.create("C:/Code/BC_openSTARS_SSN/Data/Streams")
 dir.create("C:/Code/BC_openSTARS_SSN/Data/PredVect")
-
+dir.create("C:/Code/BC_openSTARS_SSN/DataUTM10")
 #Provide study extent -> vector (length=4; order= xmin, xmax, ymin, ymax)
 dem <- raster(dem_pth)
 crs(dem)
@@ -55,7 +55,7 @@ e_sf<-sf::st_as_sfc(e_sf)
 #PRJ4 for EPSG:4326 and EPSG:3005
 wgs84<-"+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 bcalb<-"+proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs"
-
+utm <- "+proj=utm +zone=10 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
 ####Load and write stream site observations ####
 
@@ -63,6 +63,11 @@ sites<-st_read(sites_pth)
 st_crs(sites)!=st_crs(bcalb)
 sf::write_sf(sites,"Data/Sites/sites.shp",overwrite=T)
 
+#rewrite sites to utm10
+sites <- st_read("HuntData/parsnip_sites_bcalb.shp")
+sites <- st_transform(sites, crs = utm)
+st_crs(sites)
+st_write(sites, "DataUTM10/parsnip_sites_utm.shp")
 
 ####Load and write primary DEM####
 #read in manually prepared DEM
@@ -92,6 +97,14 @@ raster::writeRaster(aoi_raster, filename = 'Data/DEMgeo/dem.gtif', format = 'GTi
 x <- raster('Data/DEMgeo/dem.tif')
 raster::crs(x)
 
+# write dem to utm10
+dem <- raster("HuntData/parsnip_3005.tif")
+dem <- projectRaster(dem, crs = utm)
+raster::crs(dem)
+plot(dem)
+writeRaster(dem, filename = "DataUTM10/parsnip_utm.tif", format = 'GTiff')
+
+
 #### Load and write krige map - check proj
 interp_temp <- raster::raster(temp_pth)
 raster::projection(interp_temp)
@@ -100,6 +113,14 @@ interp_temp<-projectRaster(interp_temp,crs=bcalb)
 
 plot(interp_temp)
 raster::writeRaster(interp_temp, filename = 'Data/FieldObs/interp_temp.tif',overwrite=T)
+
+#write temp raster to utm10
+interp_temp <- raster::raster(temp_pth)
+memory.limit(50000)
+interp_temp <- projectRaster(interp_temp, crs = utm)
+raster::crs(interp_temp)
+plot(interp_temp)
+writeRaster(interp_temp, filename = "DataUTM10/airtemp_utm.tif", format = 'GTiff')
 
 ####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
              
