@@ -119,7 +119,29 @@ summary(pars.glmssn3)
 pars.pred1km <- predict(pars.glmssn3, "preds_o")
 
 
-plot(pars.pred1km, "augmean", cex = 0.1)
+plot(pars.pred1km, "augmean", cex = 0.1, main = "august")
+
+plot.glmssn.predict(pars.pred1km, "augmean", breaktype = "user", 
+                    brks = c(8, 10, 12, 14), cex = 0.1)
+title(main = "August Mean Monthly Temperature (C)")
+
+plot(pars3, "augmean", lwdLineCol = "afvArea", brks = c(8, 10, 12, 14), 
+             lwdLineEx = 10, lineCol = "black", xlab = "x-coordinate" ,
+             ylab = "y-coordinate", asp = 1, main = "August")
+
+plot.glmssn.predict(pars.pred1km, "augmean", 
+                    cex = 0.1, add = TRUE)
+
+
+
+
+plot.SpatialStreamNetwork(pars3, "augmean", add = TRUE, 
+                          breaktype = "user", brks = c(4, 8, 10, 12, 14),
+                          main = "August 2019 Average Temperature (C)", 
+                          ylab = "Northing", 
+                          xlab = "Easting"
+                          )
+plot(pars.pred1km, "augmean", cex = 0.3, add = TRUE)
 
 
 #residuals plot
