@@ -69,6 +69,18 @@ sites <- st_transform(sites, crs = utm)
 st_crs(sites)
 st_write(sites, "DataUTM10/parsnip_sites_utm.shp")
 
+#trophic window data ----
+sites <- st_read("somedir/DataUTM10/trophic_2019_metrics.shp")
+st_crs(sites)
+sites <- sites %>%
+  st_transform(crs = 26910)
+st_write(sites, "somedir/Data/Sites/sites2019.shp")
+sites <- st_read("somedir/DataUTM10/trophic_2020_metrics.shp")
+st_crs(sites)
+sites <- sites %>%
+  st_transform(crs = 26910)
+st_write(sites, "somedir/Data/Sites/sites2020.shp")
+
 ####Load and write primary DEM####
 #read in manually prepared DEM
 dem <- raster::raster(dem_pth)
@@ -77,6 +89,11 @@ raster::compareCRS(raster::crs(dem),bcalb, unknown = T)
 dem <- raster::projectRaster(dem,crs=bcalb)
 plot(dem)
 raster::writeRaster(dem, filename = 'Data/DEM_manual/dem.tif',overwrite=T)
+
+# trophic window data -----
+dem <- raster::raster("somedir/DataUTM10/parsnip_utm.tif") 
+raster::projection(dem)
+raster::writeRaster(dem, filename = "somedir/Data/DEM/parsnip_utm10.gtif", format = "GTiff", overwrite=T)
 
 # extract dem using bcmaps::cded_raster
 
@@ -121,6 +138,16 @@ interp_temp <- projectRaster(interp_temp, crs = utm)
 raster::crs(interp_temp)
 plot(interp_temp)
 writeRaster(interp_temp, filename = "DataUTM10/airtemp_utm.tif", format = 'GTiff')
+
+###trophic window temp raster data ----
+interp_temp <- raster::raster("somedir/DataUTM10/trophic_2019_at.awat [Universal Kriging].tif")
+raster::projection(interp_temp)
+raster::writeRaster(interp_temp, filename = "somedir/Data/DEM/parsnip_airtemp2019utm10.gtif", format = "GTiff", overwrite=T)
+
+
+interp_temp <- raster::raster("somedir/DataUTM10/trophic_2020_at.awat [Universal Kriging].tif")
+raster::projection(interp_temp)
+raster::writeRaster(interp_temp, filename = "somedir/Data/DEM/parsnip_airtemp2020utm10.gtif", format = "GTiff", overwrite=T)
 
 ####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
              

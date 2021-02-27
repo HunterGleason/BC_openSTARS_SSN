@@ -15,10 +15,10 @@ library(dplyr)
 ssn_dir <- paste("SSN/",readline(prompt="Please enter the desired name of the output SNN object, e.g., bowron.ssn: "),sep="")
 
 #Path to DEM 
-dem_path<-"BC_openSTARS_SSN/HuntData/parsnip_3005.tif"
+dem_path<-"somedir/Data/DEM/parsnip_utm10.tif"
 
 #Path to observed stream sites.
-sites_path <- "BC_openSTARS_SSN/HuntData/parsnip_sites_bcalb.shp"
+sites_path <- "somedir/Data/Sites/sites2020.shp"
 
 #repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
 
@@ -40,10 +40,10 @@ pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at whic
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 #Enter path to gridded air temp
-#r_pred_paths<- c("C:/Code/BC_openSTARS_SSN/Data/FieldObs/interp_temp.tif")
+r_pred_paths<- c("somedir/Data/DEM/parsnip_airtemp2019utm10.tif")
 
 #Make raster covar names shp file friendly 
-#r_pred_names<-c('avTmp')
+r_pred_names<-c('avTmp')
 
 #Prompt user for accumulation threshold to use for deriving stream network 
 #accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
@@ -65,7 +65,7 @@ pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at whic
 
 
 #### Set up grass env. based on local TRIM DEM 
-grass_location <-"parsnip_2020"
+grass_location <-"parsnip_2019"
 
 print("Setting up GRASS Env. based on DEM ...")
 
