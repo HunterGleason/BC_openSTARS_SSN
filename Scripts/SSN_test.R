@@ -169,3 +169,16 @@ pars3.glmssn4 <- glmssn(augmean ~ avTmpA, pars3,
 # pars3.glmssn4 <- glmssn(augmean ~ avTmpA, pars3, 
 #                         CorModels = c("Spherical.tailup", "Spherical.taildown"), 
 #                         addfunccol = "computed.afv")
+
+#trophic window model evaluation ----
+## trophic 2019 ---
+trophic2019 <- importSSN("SSN/parsnip_trophic2019.ssn", predpts = "preds_o")
+
+names(trophic2019@data)
+
+#create additive function and distance map
+trophic2019 <- additive.function(trophic2019, "H2OArea", "computed.afv")
+createDistMat(trophic2019, predpts = "preds_o", o.write = TRUE,  amongpreds = TRUE)
+
+names(trophic2019)
+
