@@ -108,7 +108,7 @@ plot(pars3.Torg)
 
 names(pars3)
 
-
+#model creation
 pars.glmssn3 <- glmssn(augmean ~ avTmpA, pars3,
                        CorModels = c("Spherical.tailup", "Exponential.Euclid"),
                        addfunccol = "computed.afv",
@@ -116,9 +116,11 @@ pars.glmssn3 <- glmssn(augmean ~ avTmpA, pars3,
 
 summary(pars.glmssn3)
 
+#prediction for pred points
 pars.pred1km <- predict(pars.glmssn3, "preds_o")
 
 
+#visualize
 plot(pars.pred1km, "augmean", cex = 0.1, main = "august")
 
 plot.glmssn.predict(pars.pred1km, "augmean", breaktype = "user", 
@@ -168,7 +170,7 @@ x[2,2]
 x[3,2]
 
 
-#AIC
+#AIC ------
 AIC(pars.glmssn3)
 
 
@@ -191,16 +193,4 @@ pars3.glmssn4 <- glmssn(augmean ~ avTmpA, pars3,
 # pars3.glmssn4 <- glmssn(augmean ~ avTmpA, pars3, 
 #                         CorModels = c("Spherical.tailup", "Spherical.taildown"), 
 #                         addfunccol = "computed.afv")
-
-#trophic window model evaluation ----
-## trophic 2019 ---
-trophic2019 <- importSSN("SSN/parsnip_trophic2019.ssn", predpts = "preds_o")
-
-names(trophic2019@data)
-
-#create additive function and distance map
-trophic2019 <- additive.function(trophic2019, "H2OArea", "computed.afv")
-createDistMat(trophic2019, predpts = "preds_o", o.write = TRUE,  amongpreds = TRUE)
-
-names(trophic2019)
 
