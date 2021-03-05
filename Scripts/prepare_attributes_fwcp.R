@@ -70,11 +70,12 @@ st_crs(sites)
 st_write(sites, "DataUTM10/parsnip_sites_utm.shp")
 
 #trophic window data ----
-sites <- st_read("somedir/DataUTM10/trophic_2019_metrics.shp")
+sites <- st_read("DataUTM10/trophic_2019_metrics.shp")
 st_crs(sites)
 sites <- sites %>%
   st_transform(crs = 26910)
-st_write(sites, "somedir/Data/Sites/sites2019.shp")
+st_write(sites, "DataUTM10/trophic_2019_metrics.shp", append = FALSE)
+
 sites <- st_read("somedir/DataUTM10/trophic_2020_metrics.shp")
 st_crs(sites)
 sites <- sites %>%
@@ -91,8 +92,9 @@ plot(dem)
 raster::writeRaster(dem, filename = 'Data/DEM_manual/dem.tif',overwrite=T)
 
 # trophic window data -----
-dem <- raster::raster("somedir/DataUTM10/parsnip_utm.tif") 
+dem <- raster::raster("DataUTM10/parsnip_utm.tif") 
 raster::projection(dem)
+dem <- raster::projectRaster(dem,crs=utm)
 raster::writeRaster(dem, filename = "somedir/Data/DEM/parsnip_utm10.gtif", format = "GTiff", overwrite=T)
 
 # extract dem using bcmaps::cded_raster
@@ -140,14 +142,16 @@ plot(interp_temp)
 writeRaster(interp_temp, filename = "DataUTM10/airtemp_utm.tif", format = 'GTiff')
 
 ###trophic window temp raster data ----
-interp_temp <- raster::raster("somedir/DataUTM10/trophic_2019_at.awat [Universal Kriging].tif")
+interp_temp <- raster::raster("DataUTM10/trophic_2019_atawat [Universal Kriging].tif")
 raster::projection(interp_temp)
-raster::writeRaster(interp_temp, filename = "somedir/Data/DEM/parsnip_airtemp2019utm10.gtif", format = "GTiff", overwrite=T)
+interp_temp <- raster::projectRaster(interp_temp ,crs=utm)
+raster::writeRaster(interp_temp, filename = "DataUTM10/trophic_2019_atawat [Universal Kriging].gtif", format = "GTiff", overwrite=T)
 
 
-interp_temp <- raster::raster("somedir/DataUTM10/trophic_2020_at.awat [Universal Kriging].tif")
+interp_temp <- raster::raster("DataUTM10/trophic_2020_atawat [Universal Kriging].tif")
 raster::projection(interp_temp)
-raster::writeRaster(interp_temp, filename = "somedir/Data/DEM/parsnip_airtemp2020utm10.gtif", format = "GTiff", overwrite=T)
+interp_temp <- raster::projectRaster(interp_temp ,crs=utm)
+raster::writeRaster(interp_temp, filename = "DataUTM10/trophic_2020_atawat [Universal Kriging].gtif", format = "GTiff", overwrite=T)
 
 ####Get Stream Network using fwapgr, this layer is used for burning the DEM (REQUIRED)####
              

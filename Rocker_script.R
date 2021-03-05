@@ -15,10 +15,10 @@ library(dplyr)
 ssn_dir <- paste("SSN/",readline(prompt="Please enter the desired name of the output SNN object, e.g., bowron.ssn: "),sep="")
 
 #Path to DEM 
-dem_path<-"somedir/Data/DEM/parsnip_utm10.tif"
+dem_path<-"DataUTM10/parsnip_utm.tif"
 
 #Path to observed stream sites.
-sites_path <- "somedir/Data/Sites/sites2020.shp"
+sites_path <- "DataUTM10/trophic_2019_metrics.shp"
 
 #repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
 
@@ -40,7 +40,7 @@ pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at whic
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 #Enter path to gridded air temp
-r_pred_paths<- c("somedir/Data/DEM/parsnip_airtemp2019utm10.tif")
+r_pred_paths<- c("DataUTM10/trophic_2019_at.awat [Universal Kriging].tif")
 
 #Make raster covar names shp file friendly 
 r_pred_names<-c('avTmp')
@@ -107,7 +107,7 @@ gmeta()
 
 #Check projections
 #print("Checking projections ... ")
-#check_projection(r_pred_paths)
+check_projection(r_pred_paths)
 
 
 #This function loads a DEM (digital elevation model) and sites data (both required) into the 'GRASS' session. 
@@ -119,9 +119,9 @@ gmeta()
 # if(pred_sites=="" | pred_sites=="interval")
 # {
 import_data(dem = dem_path, 
-            sites = sites_path)
-# predictor_raster = r_pred_paths, 
-# predictor_r_names = r_pred_names)
+            sites = sites_path,
+            predictor_raster = r_pred_paths, 
+            predictor_r_names = r_pred_names)
 # streams = stream_path, 
 # snap_streams = T)
 # }else{
@@ -385,9 +385,9 @@ print("Computing covariate edge attributes, this might take a while ...")
 #                       #round_dig = 5
 #                  )
 
-calc_attributes_edges(input_raster = c('dem','slope','gradt_ds'), 
-                      stat_rast = c('mean','mean','mean'), 
-                      attr_name_rast = c('avEle','avSlo','avGrdt'),
+calc_attributes_edges(input_raster = c('dem','slope','gradt_ds', 'avTmp'), 
+                      stat_rast = c('mean','mean','mean', 'mean'), 
+                      attr_name_rast = c('avEle','avSlo','avGrdt', 'avTmp'),
                       round_dig = 5
 )
 
@@ -413,18 +413,18 @@ calc_attributes_edges(input_raster = c('dem','slope','gradt_ds'),
 #{
 #  print("Computing covariate prediction site attributes, this might take a while ...")
 calc_attributes_sites_approx(sites_map = "preds_o", 
-                             input_attr_name = c('avEle','avSlo','avGrdt'),
-                             output_attr_name = c('avEleA','avSloA','avGrdtA'),
-                             stat = c('mean','mean','mean'),
+                             input_attr_name = c('avEle','avSlo','avGrdt', 'avTmp'),
+                             output_attr_name = c('avEleA','avSloA','avGrdtA', 'avTmpA'),
+                             stat = c('mean','mean','mean', 'mean'),
                              calc_basin_area = TRUE,
                              round_dig = 5)
 #}
 
 #print("Computing covariate site attributes, this might take a while ...")
 calc_attributes_sites_approx(sites_map = "sites", 
-                             input_attr_name = c('avEle','avSlo','avGrdt'),
-                             output_attr_name = c('avEleA','avSloA','avGrdtA'),
-                             stat = c('mean','mean','mean'),
+                             input_attr_name = c('avEle','avSlo','avGrdt', 'avTmp'),
+                             output_attr_name = c('avEleA','avSloA','avGrdtA', 'avTmpA'),
+                             stat = c('mean','mean','mean','mean'),
                              calc_basin_area = TRUE,
                              round_dig = 5)
 
