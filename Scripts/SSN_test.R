@@ -1,6 +1,7 @@
 #SSN exploration on parsnip_test.ssn
 library(SSN)
 
+
 #example data
 mf04p <- importSSN("MiddleFork.ssn", predpts = "pred1km")
 mf04p <- importPredpts(mf04p, "Knapp", "ssn")
@@ -8,9 +9,9 @@ mf04p <- importPredpts(mf04p, "CapeHorn", "ssn")
 names(mf04p)
 
 #parsnip HuntData ----
-pars1 <- importSSN("Data/parsnip_test.ssn", predpts = "preds_o")
+pars1 <- importSSN("SSN/parsnip_trophic2019.ssn", predpts = "preds_o")
 
-names(pars1@data)
+names(pars1)
 
 pars1 <- additive.function(pars1, "H2OArea", "computed.afv")
 
@@ -34,8 +35,8 @@ plot(pars1.Torg)
 names(pars1)
 
 
-pars.glmssn1 <- glmssn(augmean ~ avEleA + avSloA, pars1,
-    CorModels = c("Exponential.tailup", "Exponential.taildown", "Exponential.Euclid"), 
+pars.glmssn1 <- glmssn(X2019.08.03 ~ avEleA + avSloA, pars1,
+    CorModels = c("Exponential.tailup", "Exponential.taildown"), 
     addfunccol = "computed.afv")
 
 
@@ -46,10 +47,34 @@ pars.pred1km <- predict(pars.glmssn1, "preds_o")
 pars.pred1km
 
 
-plot(pars.pred1km, "augmean", cex = .1)
-plot(pars.pred1km, xlim = c(1220000,1260000), ylim = c(1080000,1140000))
+plot(pars.pred1km, "X2019.08.03", cex = .1)
+plot(pars.pred1km)
+
+#add data to object after the fact
+#join data
+ObsDF <- getSSNdata.frame(pars1)
+day <- st_read("DataUTM10/trophic_2019_metrics.shp") %>%
+    dplyr::select(-c(awat,awvar,mwat,mwvar,mwvar,awcoef,mwcoef,site_cd,augmean,
+    augmax,augvar,augcoef,geometry))
+
+#select out pid column
+x <- ObsDF$pid
+
+#bind new data
+testObs <- ObsDF %>%
+    dplyr::left_join(day, by = "wypnt_n")
+
+#fix rownames to match the pid column.... not sure why this works
+rownames(testObs) <- x
+
+pars1 <- putSSNdata.frame(testObs, pars1)
 
 
+names(pars1)
+rownames(testObs) <- 1:55
+testObs$cat
+testObs$locID <- 1:55
+rownames(testObs) <- x
 #### parsnip test 3 ----
 #parsnip object by Bryce 
 pars3 <- importSSN("SSN/parsnip_test3.ssn", predpts = "preds_o")
