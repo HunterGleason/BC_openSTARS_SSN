@@ -111,7 +111,7 @@ if(climate_source!='NONE')
   if(climate_source=="ClimateBC")
   {
     print("Converting DEM to ClimateBC Format at 600 m resolution.")
-    #Need to resample DEM to 600 m resolution 
+    #Need to resample DEM to 600 m resolution (res of climate BC) 
     resam_x<-(e[2]-e[1])/600
     resam_y<-(e[4]-e[3])/600
     resam_<-raster(nrow=resam_y, ncol=resam_x)

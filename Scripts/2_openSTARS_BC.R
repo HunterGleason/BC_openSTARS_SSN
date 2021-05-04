@@ -54,6 +54,8 @@ stream_path<-"Data/Streams/fresh_water_atlas.shp"
 #Vector of predictive raster attribute layers, and Abbrv. vector 
 climate_type<-readline(prompt = "Enter 'BC' to use ClimateBC climate data, or 'DM' to use Daymet, or 'NONE' to provide gridded climate data: ")
 
+RCP_pred <- readline(prompt="Do you wish to compute RCP predictions, TRUE or FALSE:")
+
 #Get paths to raster covars, depending on what climate model was use in 1_prepareAttributes.R
 if(climate_type=='DM')
 {
@@ -84,8 +86,18 @@ if(climate_type=='DM')
   }
 }
 
-#Make raster covar names shp file friendly 
-r_pred_names<-c('avTmp','totPpt','frcItrc','lai','lst','sdoff')
+if(RCP_pred=='TRUE')
+{
+  r_pred_paths = c(r_pred_paths,'Data/PredRast/ClimateBC/tave_rcp.tif','Data/PredRast/ClimateBC/ppt_rcp.tif')
+}
+
+#Make raster covar names shp file friendly
+if(RCP_pred=='FALSE')
+{
+  r_pred_names<-c('avTmp','totPpt','frcItrc','lai','lst','sdoff')
+}else{
+  r_pred_names<-c('avTmp','totPpt','frcItrc','lai','lst','sdoff','RcpTmp','RcpPpt')
+}
 
 #Vector of predictive vector attribute layers, and Abbrv. vector 
 v_pred_paths<-c("Data/PredVect/roads_v.shp","Data/PredVect/fresh_water_atlas_waterbods.shp","Data/PredVect/ConsCutBlk.shp","Data/PredVect/Fires.shp")
@@ -402,6 +414,8 @@ if(pred_sites=="interval")
 
 print("Computing covariate edge attributes, this might take a while ...")
 
+if(RCP_pred=='FALSE')
+{
 calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
                       stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
                       attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
@@ -409,6 +423,15 @@ calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope'
                       stat_vect = c('percent','percent','percent'),
                       attr_name_vect = c('WBT','Age','Age'),
                       round_dig = 5)
+}else{
+ calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff','RcpTmp','RcpPpt'), 
+                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean','mean','mean'), 
+                      attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff','avRcpT','avRcpP'),
+                      input_vector = c("watrbod","cutblk","fires"),
+                      stat_vect = c('percent','percent','percent'),
+                      attr_name_vect = c('WBT','Age','Age'),
+                      round_dig = 5)
+}
 
 
 #!!!!!!Need to address issue of when no glaciers, lakes or wetlands are present, also issue with cutblocks and fires !!!!!!!!
@@ -432,12 +455,21 @@ vec_stats<-c('percent','percent','percent','percent','percent','percent','percen
 if(pred_sites!="")
 {
   print("Computing covariate prediction site attributes, this might take a while ...")
+  if(RCP_pred=='FALSE'){
   calc_attributes_sites_approx(sites_map = "preds_o", 
                                input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
                                output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
                                stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
                                calc_basin_area = TRUE,
                                round_dig = 5)
+  }else{
+   calc_attributes_sites_approx(sites_map = "preds_o", 
+                               input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff','avRcpT','avRcpP'),paste(vec_att_names,"p",sep="")),
+                               output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA','avRcpTA','avRcpPA'),vec_out_names),
+                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean','mean','mean'),vec_stats),
+                               calc_basin_area = TRUE,
+                               round_dig = 5)
+  }
 }
 
 print("Computing covariate site attributes, this might take a while ...")
