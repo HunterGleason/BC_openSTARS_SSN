@@ -7,16 +7,16 @@ library(parallel)
 library(dplyr)
 library(blogdown)
 
-#Prompt user to define computation resources to allocate. 
-cpu <- as.numeric(readline(prompt="Enter percentage (0-100) CPU to allocate: "))
+toml_path <- readline(prompt="Enter path to TOML parameter file: \n")
 
-#Can Change based on computing resources 
-data.table::setDTthreads(percent = cpu)
+toml<-read_toml(toml_path)
+
+setwd(toml$prepare_inputs$working_dir)
 
 ####Set Global Vars####
 
 #Promt user for name of output SSN file.
-ssn_dir <- paste("SSN/",readline(prompt="Please enter the desired name of the output SNN object, e.g., bowron.ssn: "),sep="")
+ssn_dir <- toml$run_openstars$ssn_name
 
 #Path to DEM 
 dem_path<-"Data/DEM/dem.tif"
@@ -25,7 +25,7 @@ dem_path<-"Data/DEM/dem.tif"
 sites_path <- "Data/Sites/sites.gpkg"
 
 #Prompt user to added a repeated measures data to SSN object. 
-repeated_meas <- readline(prompt="Do you wish to add repeated measures to SSN object, TRUE or FALSE: ")
+repeated_meas <- toml$run_openstars$repeated_meas
 
 #If adding repeated SSN measures, prompt user for SSN file location(s). 
 if(repeated_meas=='TRUE')
@@ -36,97 +36,78 @@ if(repeated_meas=='TRUE')
 
 
 #Prompt user for path to predictions site layer, or allow auto generation of prediction sites.
-pred_sites<-readline(prompt="Please enter 'provided' if user prediction sites have been provided, type 'interval' to generate prediction sites at specified intervals, or leave blank to skip computation of prediction sites: ")
+pred_type<-toml$run_openstars$pred_type
 
 #If auto generating prediction sites, prompt user for distance interval along stream. 
-if(pred_sites=='interval')
+if(pred_type=='interval')
 {
-  pred_dist<-strtoi(readline(prompt="Please enter stream distance interval at which to generate prediction sites in meters: "))
+  pred_dist <- toml$run_openstars$pred_int_dist
 }
-if(pred_sites=='provided')
+if(pred_type=='provided')
 {
-  pred_url<-strtoi(readline(prompt="Please enter path to prediction sites vector file: "))
+  usr_pred_path <- toml$run_openstars$pred_prov_pth
 }
 
 
 #Path to freshwater-atlas stream network
-stream_path<-"Data/Streams/fresh_water_atlas.shp"
+stream_path<-"Data/Streams/streams.shp"
 
 #Vector of predictive raster attribute layers, and Abbrv. vector 
-climate_type<-readline(prompt = "Enter 'BC' to use ClimateBC climate data, or 'DM' to use Daymet, or 'NONE' to provide gridded climate data: ")
+climate_type<-toml$prepare_inputs$climate_source
 
-#Get paths to raster covars, depending on what climate model was use in 1_prepareAttributes.R
-if(climate_type=='DM')
+
+if(climate_type=='ClimateBC')
 {
-  
-  r_pred_paths<- c("Data/PredRast/DayMet/tavg_monavg_ncss.tif",
-                   "Data/PredRast/DayMet/prcp_monttl_ncss.tif",
-                   "Data/PredRast/LAI/dly_frac_intercep_x1.tif",
-                   "Data/PredRast/LAI/LAI.tif",
-                   "Data/PredRast/LST/LST.tif",
-                   "Data/PredRast/MD10A1_SDOFF/SDoff.tif")
-  
+  r_pred_paths<- c(paste("Data/PredRast/ClimateBC/",toml$prepare_inputs$year,"_tave.tif",sep=''),
+                         paste("Data/PredRast/ClimateBC/",toml$prepare_inputs$year,"_ppt.tif",sep=''))
 }else{
-  if(climate_type=='BC')
-  {
-    r_pred_paths<- c("Data/PredRast/ClimateBC/tave.tif",
-                     "Data/PredRast/ClimateBC/ppt.tif",
-                     "Data/PredRast/LAI/dly_frac_intercep_x1.tif",
-                     "Data/PredRast/LAI/LAI.tif",
-                     "Data/PredRast/LST/LST.tif",
-                     "Data/PredRast/MD10A1_SDOFF/SDoff.tif")
-  }else{
-    r_pred_paths<- c("Data/PredRast/FieldObs/interp_temp.tif",
-                     "Data/PredRast/FieldObs/interp_prcp.tif",
-                     "Data/PredRast/LAI/dly_frac_intercep_x1.tif",
-                     "Data/PredRast/LAI/LAI.tif",
-                     "Data/PredRast/LST/LST.tif",
-                     "Data/PredRast/MD10A1_SDOFF/SDoff.tif")
-  }
+  r_pred_paths<- c("Data/PredRast/FieldObs/interp_temp.tif",
+                   "Data/PredRast/FieldObs/interp_prcp.tif")
 }
 
+
 #Make raster covar names shp file friendly 
-r_pred_names<-c('avTmp','totPpt','frcItrc','lai','lst','sdoff')
+r_pred_names<-c('avTmp','totPpt')
 
 #Vector of predictive vector attribute layers, and Abbrv. vector 
-v_pred_paths<-c("Data/PredVect/roads_v.shp","Data/PredVect/fresh_water_atlas_waterbods.shp","Data/PredVect/ConsCutBlk.shp","Data/PredVect/Fires.shp")
+v_pred_paths<-c("Data/PredVect/Roads.shp","Data/PredVect/FWAWaterbods.shp","Data/PredVect/ConsCutBlk.shp","Data/PredVect/Fires.shp")
 v_pred_names<-c("roads","watrbod","cutblk","fires")
 
 
 #Prompt user for accumulation threshold to use for deriving stream network 
-accum_thresh<-strtoi(readline(prompt = "Please enter the accumulation threshold to use (i.e. minimum flow accumulation value in cells that will initiate a new stream), 700 is a good start.: "))
+accum_thresh <- toml$run_openstars$accum_thresh
 
 #Prompt user for desired minimum stream length. 
-min_strm_lngth<-strtoi(readline(prompt = "Please enter minimum stream length in number of DEM raster cells; shorter first order stream segments are deleted, typically set to zero.: "))
+min_strm_lngth <- toml$run_openstars$min_strm_lngth
 
 #Prompt user for depth to burn DEM 
-burn_m<-strtoi(readline(prompt = "How many meters should the Freshwater Atlas streams layer be burned into the DEM? Typically 0-5m. Leave blank if streams should be derived solely from DEM.: "))
+burn_m <- toml$run_openstars$burn_m
 
 
 #Monthly DOY centres, used for estimating monthly average solar input 
-month<-strtoi(readline(prompt = "Please enter the month that the study data corresponds to (1-12): "))
+month <- toml$prepare_inputs$month 
 doy_centres<-c(15,46,74,105,135,166,196,227,258,288,319,349)
 
 
 
 
 #### Set up grass env. based on local TRIM DEM 
-grass_location<-readline(prompt = "Please provide name for temporary grass location, e.g., bowron_2018: ")
+grass_location<-'tpm_openstars_grass'
 
 print("Setting up GRASS Env. based on DEM ...")
 
 #Install addons
-system('grass76 --tmp-location XY --exec g.extension r.stream.basins')
-system('grass76 --tmp-location XY --exec g.extension r.stream.distance')
-system('grass76 --tmp-location XY --exec g.extension r.stream.order')
-system('grass76 --tmp-location XY --exec g.extension r.stream.slope')
-system('grass76 --tmp-location XY --exec g.extension r.hydrodem')
+system('sudo grass78 --tmp-location XY --exec g.extension r.stream.basins -s')
+system('grass78 --tmp-location XY --exec g.extension r.stream.distance')
+system('grass78 --tmp-location XY --exec g.extension r.stream.order')
+system('grass78 --tmp-location XY --exec g.extension r.stream.slope')
+system('grass78 --tmp-location XY --exec g.extension r.hydrodem')
 
 
 rgrass7::use_sp()
 
 dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
-initGRASS(gisBase = '/usr/lib/grass76/',
+initGRASS(gisBase = '/usr/lib/grass78/',
           mapset = 'PERMANENT',
           location = grass_location,
           override=T)
@@ -470,7 +451,7 @@ merge_sites_measurements_hg<-function(ssn_v)
   cur_sites_coords<-as.data.frame(cur_sites@coords)
   cur_sites_coords$site<-cur_sites_df$site
   
-
+  
   
   merged_df<-cur_sites_df
   merged_coords<-cur_sites_coords

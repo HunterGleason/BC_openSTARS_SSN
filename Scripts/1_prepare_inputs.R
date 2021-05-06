@@ -56,8 +56,11 @@ month_climbc_to_tif<-function(climate_bc_csv,month,targ_crs,name)
   
 }
 
+toml_path <- readline(prompt="Enter path to TOML parameter file: \n")
 
-toml<-read_toml('TOML/bc_openstars.toml')
+toml<-read_toml(toml_path)
+
+setwd(toml$prepare_inputs$working_dir)
 
 e<-extent(raster(toml$prepare_inputs$dem_path))
 
@@ -82,7 +85,7 @@ writeRaster(raster(toml$prepare_inputs$dem_path),"Data/DEM/dem.tif")
 climate_source<-toml$prepare_inputs$climate_source
 
 #If providing climate data, prompt for path
-if(climate_source=='NONE')
+if(climate_source=='NULL')
 {
   temp_pth<-toml$prepare_inputs$temp_path
   prcp_pth<-toml$prepare_inputs$prcp_path
@@ -262,7 +265,7 @@ if(st_crs(waterbods)!=st_crs(dem_crs))
 
 #Write water bodies layer to openSTARS dir
 print("Writing Freswater Atlas waterbodies layer to 'Data/PredVect/fresh_water_atlas_waterbods.shp'")
-write_sf(waterbods, paste('Data/PredVect/fresh_water_atlas_waterbods.shp',sep = ""))
+write_sf(waterbods, paste('Data/PredVect/FWAWaterbods.shp',sep = ""))
 
 
 ####Get Roads Networks####
@@ -306,7 +309,7 @@ if(toml$prepare_inputs$roads_path=="NULL")
 
 #Write roads data to PredVect directory as roads_v.shp
 print("Writing roads to 'Data/PredVect/roads_v.shp'")
-sf::write_sf(roads %>% dplyr::select(geometry),'Data/PredVect/roads_v.shp')
+sf::write_sf(roads %>% dplyr::select(geometry),'Data/PredVect/Roads.shp')
 
 
 #print("Plotting final vector layers...")
