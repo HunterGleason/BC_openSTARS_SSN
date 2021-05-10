@@ -225,13 +225,6 @@ execGRASS("r.sun",flags = c("overwrite"),
                             day=doy_centres[month],
                             nprocs=procs))
 
-#Adjust incoming solar radiation for canopy effects based on Sentinel 2 derived daily fractional interception by canopy.
-#Assumes leaf angle distribution x=1.
-print("Adjusting solar input for daily fractional interception from canopy ...")
-execGRASS("r.mapcalc",flags=c("overwrite"),
-          parameters = list(
-            expression = "totirra_adj = totirra - ( totirra * frcItrc * 0.8)"
-          ))
 
 #Buffer stream network by 120m 
 print("Buffering Stream Network ...")
@@ -305,11 +298,6 @@ execGRASS("r.mapcalc", flags = c("overwrite"),
             expression = "gradt_ds = gradt"
           ))
 
-execGRASS("r.mapcalc", flags = c("overwrite"),
-          parameters = list(
-            expression = "lstst = lst"
-          ))
-
 #Deactivate stream mask
 execGRASS("r.mask", flags = c("r"))
 
@@ -320,11 +308,6 @@ execGRASS("r.mask",flags = c("overwrite"),
             vector = "lakes"
           ))
 
-#Run mapcalc on gradiant raster with stream mask active 
-execGRASS("r.mapcalc", flags = c("overwrite"),
-          parameters = list(
-            expression = "lstlk = lst"
-          ))
 
 #Deactivate lake mask
 execGRASS("r.mask", flags = c("r"))
@@ -379,10 +362,7 @@ if(pred_type=="interval")
   restrict_network("sites",keep_netIDs = unique(sites$netID))
 }
 
-
-
 print("Computing covariate edge attributes, this might take a while ...")
-
 calc_attributes_edges(input_raster = c('dem','slope','eastness','northnes','totirra','totirra_strm','avTmp','totPpt','gradt_ds','roads_r'), 
                       stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','sum'), 
                       attr_name_rast = c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),
