@@ -8,9 +8,11 @@ library(sf)
 library(readr)
 library(blogdown)
 
+
+
 month_climbc_to_tif<-function(climate_bc_csv,month,targ_crs,name)
 {
-  wgs84<-crs('EPSG:4326')
+  wgs84<-crs('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
   
   #Read in ClimateBC CSV
   print("Reading in ClimateBC output data ...")
@@ -35,23 +37,23 @@ month_climbc_to_tif<-function(climate_bc_csv,month,targ_crs,name)
   print("Writing max temperature data to 'Data/PredRast/ClimateBC/tmax.tif'")
   tmx<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmx_stamp)],crs=wgs84)
   tmx_p<-projectRaster(tmx, crs = targ_crs)
-  raster::writeRaster(tmx_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tmax.tif',sep=''))
+  raster::writeRaster(tmx_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tmax.tif',sep=''),overwrite=T)
   
   print("Writing min temperature data to 'Data/PredRast/ClimateBC/tmin.tif'")
   tmn<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tmn_stamp)],crs=wgs84)
   tmn_p<-projectRaster(tmn, crs = targ_crs)
-  raster::writeRaster(tmn_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tmin.tif',sep=''))
+  raster::writeRaster(tmn_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tmin.tif',sep=''),overwrite=T)
   
   print("Writing mean temperature data to 'Data/PredRast/ClimateBC/tave.tif'")
   tav<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',tav_stamp)],crs=wgs84)
   tav_p<-projectRaster(tav, crs = targ_crs)
-  raster::writeRaster(tav_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tave.tif',sep=''))
+  raster::writeRaster(tav_p, filename = paste('Data/PredRast/ClimateBC/',name,'_tave.tif',sep=''),overwrite=T)
   
   #Get total precipitation data, covert to raster, reproject and write to Data directory 
   print("Writing total precipitation data to 'Data/PredRast/ClimateBC/ppt.tif'")
   ppt<- rasterFromXYZ(clim_bc_data[,c('Longitude','Latitude',p_stamp)],crs=wgs84)
   ppt_p<-projectRaster(ppt, crs = targ_crs)
-  raster::writeRaster(ppt_p,filename = paste('Data/PredRast/ClimateBC/',name,'_ppt.tif',sep=''))
+  raster::writeRaster(ppt_p,filename = paste('Data/PredRast/ClimateBC/',name,'_ppt.tif',sep=''),overwrite=T)
   
   
 }
@@ -78,7 +80,7 @@ year=toml$prepare_inputs$year
 #PRJ4 for EPSG:4326 and EPSG:3005
 dem_crs<-crs(raster(toml$prepare_inputs$dem_path))
 
-writeRaster(raster(toml$prepare_inputs$dem_path),"Data/DEM/dem.tif")
+writeRaster(raster(toml$prepare_inputs$dem_path),"Data/DEM/dem.tif",overwrite=T)
 
 
 #Prompt user to use ClimateBC or Daymet or their own raster layers

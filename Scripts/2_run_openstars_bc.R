@@ -22,7 +22,7 @@ ssn_dir <- toml$run_openstars$ssn_name
 dem_path<-"Data/DEM/dem.tif"
 
 #Path to observed stream sites.
-sites_path <- "Data/Sites/sites.gpkg"
+sites_path <- "Data/Sites/sites.shp"
 
 #Prompt user to added a repeated measures data to SSN object. 
 repeated_meas <- toml$run_openstars$repeated_meas
@@ -30,7 +30,7 @@ repeated_meas <- toml$run_openstars$repeated_meas
 #If adding repeated SSN measures, prompt user for SSN file location(s). 
 if(repeated_meas=='TRUE')
 {
-  ssn_vec<-readline(prompt="Enter path(s) to SSN objects to join to current SSN as repeated measures, seperated by ',' : ")
+  ssn_vec<-toml$run_openstars$reap_meas_path
   ssn_vec<-unlist(strsplit(ssn_vec[[1]],','))
 }
 
@@ -97,17 +97,17 @@ grass_location<-'tpm_openstars_grass'
 print("Setting up GRASS Env. based on DEM ...")
 
 #Install addons
-system('sudo grass78 --tmp-location XY --exec g.extension r.stream.basins -s')
-system('grass78 --tmp-location XY --exec g.extension r.stream.distance')
-system('grass78 --tmp-location XY --exec g.extension r.stream.order')
-system('grass78 --tmp-location XY --exec g.extension r.stream.slope')
-system('grass78 --tmp-location XY --exec g.extension r.hydrodem')
+system('grass76 --tmp-location XY --exec g.extension r.stream.basins')
+system('grass76 --tmp-location XY --exec g.extension r.stream.distance')
+system('grass76 --tmp-location XY --exec g.extension r.stream.order')
+system('grass76 --tmp-location XY --exec g.extension r.stream.slope')
+system('grass76 --tmp-location XY --exec g.extension r.hydrodem')
 
 
 rgrass7::use_sp()
 
 dem_grid <- rgdal::readGDAL(dem_path, silent = TRUE)
-initGRASS(gisBase = '/usr/lib/grass78/',
+initGRASS(gisBase = '/usr/lib/grass76/',
           mapset = 'PERMANENT',
           location = grass_location,
           override=T)
@@ -136,8 +136,10 @@ check_projection(r_pred_paths)
 #prevent lose ends. Likewise, potential predictor maps (raster or vector format) can be loaded.
 #See params.
 
+pred_type = toml$run_openstars$pred_type
+
 print("Importing data into GRASS ...")
-if(pred_sites=="" | pred_sites=="interval")
+if(pred_type=="NULL" | pred_type=="interval")
 {
   import_data(dem = dem_path, 
               sites = sites_path,
@@ -167,12 +169,9 @@ if(pred_sites=="" | pred_sites=="interval")
 #Stream topology is derived using the GRASS function r.stream.order.
 #See params.
 print("Deriving streams, this may take a while ...")
-if(burn_m=="")
-{
-  derive_streams(burn = 0, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
-}else{
-  derive_streams(burn = burn_m, accum_threshold = accum_thresh, min_stream_length = min_strm_lngth)
-}
+
+derive_streams(burn = toml$run_openstars$burn_m, accum_threshold = toml$run_openstars$accum_thresh, min_stream_length = toml$run_openstars$min_strm_lngth)
+
 
 # Check and correct complex junctions 
 print("Checking for and correcting complex junctions, this may take a while ...")
@@ -198,18 +197,18 @@ calc_edges()
 
 
 #### Calculate DEM derivative layers for use and model inputs using rgrass7 ####
-if(burn_m==0)
+if(toml$run_openstars$burn_m==0)
 {
   dem_name<-'dem_cond'
 }else{
-  dem_name<-paste('dem_cond_burn',burn_m,sep="")
+  dem_name<-paste('dem_cond_burn',toml$run_openstars$burn_m,sep="")
 }
 
 # calculate slope and aspect from DEM as an input attribute
 print("Computing slope and aspect from DEM ...")
 execGRASS("r.slope.aspect", flags = c("overwrite"),
           parameters = list(
-            elevation = dem_name,
+            elevation = 'dem',
             slope = "slope",
             aspect = "aspect"
           ))
@@ -217,9 +216,9 @@ execGRASS("r.slope.aspect", flags = c("overwrite"),
 
 #calculate total solar irradiance for the ~15th of month, should ~ average solar input for the month ...
 print("Computing total solar irradiance for the 15th day of month, this may take a while ...")
-procs<-round(detectCores(all.tests = FALSE, logical = TRUE)*(cpu/100))
+procs<-round(detectCores(all.tests = FALSE, logical = TRUE)*(toml$run_openstars$cpu/100))
 execGRASS("r.sun",flags = c("overwrite"),
-          parameters = list(elevation=dem_name,
+          parameters = list(elevation='dem',
                             aspect="aspect",
                             slope="slope",
                             glob_rad="totirra",
@@ -279,7 +278,7 @@ execGRASS("r.mapcalc",flags = c("overwrite"),
 print("Calculating drainage from DEM ...")
 execGRASS("r.watershed",flags = c("overwrite"),
           parameters = list(
-            elevation = dem_name,
+            elevation = 'dem',
             drainage = "drain"
           ))
 
@@ -289,7 +288,7 @@ print("Calculating stream gradient from drainage ...")
 execGRASS("r.stream.slope",flags = c("overwrite"),
           parameters = list(
             direction = "drain",
-            elevation = dem_name,
+            elevation = 'dem',
             gradient = "gradt"
           ))
 
@@ -349,9 +348,9 @@ execGRASS("v.to.rast", flags = c("overwrite"),
 #A vector (points) map 'sites' is derived and several attributes are assigned.
 #See params.
 print("Computing site attributes, this may take a while ...")
-if(pred_sites=="interval")
+if(pred_type=="interval")
 {
-  calc_sites(maxdist = 200)
+  calc_sites(maxdist = toml$run_openstars$snap_dist)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
   
@@ -364,16 +363,16 @@ if(pred_sites=="interval")
   
   
   
-}else if(pred_sites=="provided"){
+}else if(pred_type=="provided"){
   #Compute the local pred_sites
   print("Computing prediction site attributes, this may take a while ...")
-  calc_sites(maxdist=200, predictions="preds_o")
+  calc_sites(maxdist=toml$run_openstars$snap_dist, predictions="preds_o")
   sites <- readVECT("sites", ignore.stderr = TRUE)
   restrict_network("sites",keep_netIDs = unique(sites$netID))
   
 } else {
   print("Not computing prediction sites ...")
-  calc_sites(maxdist = 200)
+  calc_sites(maxdist = toml$run_openstars$snap_dist)
   
   sites <- readVECT("sites", ignore.stderr = TRUE)
   
@@ -384,9 +383,9 @@ if(pred_sites=="interval")
 
 print("Computing covariate edge attributes, this might take a while ...")
 
-calc_attributes_edges(input_raster = c('dem','lai','lst','lstst','lstlk','slope','eastness','northnes','totirra','totirra_adj','totirra_strm','avTmp','totPpt','gradt_ds','roads_r','sdoff'), 
-                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'), 
-                      attr_name_rast = c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),
+calc_attributes_edges(input_raster = c('dem','slope','eastness','northnes','totirra','totirra_strm','avTmp','totPpt','gradt_ds','roads_r'), 
+                      stat_rast = c('mean','mean','mean','mean','mean','mean','mean','mean','mean','sum'), 
+                      attr_name_rast = c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),
                       input_vector = c("watrbod","cutblk","fires"),
                       stat_vect = c('percent','percent','percent'),
                       attr_name_vect = c('WBT','Age','Age'),
@@ -411,13 +410,13 @@ vec_stats<-c('percent','percent','percent','percent','percent','percent','percen
 
 #### Compute basin covariate attributes by site####
 
-if(pred_sites!="")
+if(pred_type!="NULL")
 {
   print("Computing covariate prediction site attributes, this might take a while ...")
   calc_attributes_sites_approx(sites_map = "preds_o", 
-                               input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                               output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
+                               input_attr_name = append(c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),vec_att_names),
+                               output_attr_name = append(c('avEleA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA'),vec_out_names),
+                               stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','sum'),vec_stats),
                                calc_basin_area = TRUE,
                                round_dig = 5)
 }
@@ -516,7 +515,7 @@ if(repeated_meas==TRUE)
 
 #Export SSN object to SNN project directory
 print(paste("Exporting SSN object to ",ssn_dir,sep=""))
-if(pred_sites!="")
+if(pred_type!="NULL")
 {
   export_ssn(ssn_dir,predictions='preds_o',delete_directory = TRUE)
 } else {
