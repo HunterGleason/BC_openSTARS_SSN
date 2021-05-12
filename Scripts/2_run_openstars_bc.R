@@ -394,7 +394,7 @@ if(pred_type!="NULL")
 {
   print("Computing covariate prediction site attributes, this might take a while ...")
   calc_attributes_sites_approx(sites_map = "preds_o", 
-                               input_attr_name = append(c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),vec_att_names),
+                               input_attr_name = append(c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),paste(vec_att_names,"p",sep="")),
                                output_attr_name = append(c('avEleA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA'),vec_out_names),
                                stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','sum'),vec_stats),
                                calc_basin_area = TRUE,
