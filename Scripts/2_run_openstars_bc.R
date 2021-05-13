@@ -403,9 +403,9 @@ if(pred_type!="NULL")
 
 print("Computing covariate site attributes, this might take a while ...")
 calc_attributes_sites_approx(sites_map = "sites", 
-                             input_attr_name = append(c('avEle','avLai','avLst','avLstSt','avLstLk','avSlo','avEas','avNor','avIrrad','avIrrAj','avIrrSt','avTmp','avTotPp','avGrdt','smRds','avSdoff'),paste(vec_att_names,"p",sep="")),
-                             output_attr_name = append(c('avEleA','avLaiA','avLstA','avBTStA','avBTLkA','avSloA','avEasA','avNorA','avIrradA','avIrrAjA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA','avSdoffA'),vec_out_names),
-                             stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','mean','sum','mean'),vec_stats),
+                             input_attr_name = append(c('avEle','avSlo','avEas','avNor','avIrrad','avIrrSt','avTmp','avTotPp','avGrdt','smRds'),paste(vec_att_names,"p",sep="")),
+                             output_attr_name = append(c('avEleA','avSloA','avEasA','avNorA','avIrradA','avIrrStA','avTmpA','avTotPpA','avGrdtA','smRdsA'),vec_out_names),
+                             stat = append(c('mean','mean','mean','mean','mean','mean','mean','mean','mean','sum'),vec_stats),
                              calc_basin_area = TRUE,
                              round_dig = 5)
 
