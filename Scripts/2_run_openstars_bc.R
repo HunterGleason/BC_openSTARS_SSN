@@ -7,7 +7,7 @@ library(parallel)
 library(dplyr)
 library(blogdown)
 
-toml_path <- readline(prompt="Enter path to TOML parameter file: \n")
+toml_path <- '/home/rstudio/DATA/bc_openstars.toml' 
 
 toml<-read_toml(toml_path)
 

@@ -58,7 +58,7 @@ month_climbc_to_tif<-function(climate_bc_csv,month,targ_crs,name)
   
 }
 
-toml_path <- readline(prompt="Enter path to TOML parameter file: \n")
+toml_path <- '/home/rstudio/DATA/bc_openstars.toml' 
 
 toml<-read_toml(toml_path)
 
