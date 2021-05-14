@@ -16,7 +16,7 @@ setwd(toml$prepare_inputs$working_dir)
 ####Set Global Vars####
 
 #Promt user for name of output SSN file.
-ssn_dir <- toml$run_openstars$ssn_name
+ssn_dir <- toml$run_openstars$ssn_out
 
 #Path to DEM 
 dem_path<-"Data/DEM/dem.tif"
