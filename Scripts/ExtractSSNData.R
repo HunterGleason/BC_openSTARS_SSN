@@ -1,11 +1,9 @@
-
+library(SSN)
+library(dplyr)
+library(readr)
+library(sf)
 
 trophic2019 <- importSSN("SSN/parsnip_trophic2019.ssn", predpts = "preds_o")
-
-#change column name for avTmp to avTmpA
-Obs2019 <- getSSNdata.frame(trophic2019, "Obs")
-trophic2019@obspoints@SSNPoints[[1]]@point.data$avTmpA
-
 names(trophic2019@obspoints@SSNPoints[[1]]@point.data)[names(trophic2019@obspoints@SSNPoints[[1]]@point.data) == "avTmp"] <- "avTmpA"   
 names(trophic2019)
 
@@ -17,8 +15,6 @@ names(trophic2020)
 data <- SSN::getSSNdata.frame(trophic2019, Name = "preds_o")
 data <- trophic2019@data
 data <- trophic2019@predpoints@SSNPoints[[1]]@network.point.coords
-
-
 
 #get stream network from object ------
 trophic2019 <- importSSN("SSN/parsnip_trophic2019.ssn", predpts = "preds_o")
@@ -41,12 +37,29 @@ spatialdata <- broom::tidy(spatial_trophic2019)
 ##### need to learn how to connect the lines and the data
 # best guess is @network.line.coords$SegmentID = @data$rid = @lines@ID
 
-
-
 ##extract predictions-----
 SSN::getPreds()
 
-
 ##place data in the object ---
 SSN::putSSNdata.frame()
+
+#add daily observations SSN Object ----
+obs <- getSSNdata.frame(trophic2019)
+day <- st_read("DataUTM10/trophic_2019_metrics.shp") %>%
+  dplyr::select(-c(awat,awvar,mwat,mwvar,mwvar,mwcoef,site_cd,geometry))
+
+#select out pid column
+x <- obs$pid
+
+#bind new data
+obs <- obs %>%
+  dplyr::left_join(day, by = "wypnt_n")
+
+#fix rownames to match the pid column.... not sure why this works
+rownames(obs) <- x
+
+trophic2019 <- putSSNdata.frame(obs, trophic2019)
+x <- getSSNdata.frame(trophic2019)
+
+
 
