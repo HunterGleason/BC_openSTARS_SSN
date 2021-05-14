@@ -147,6 +147,23 @@ raster::projection(interp_temp)
 interp_temp <- raster::projectRaster(interp_temp ,crs=utm)
 raster::writeRaster(interp_temp, filename = "DataUTM10/trophic_2019_atawat [Universal Kriging].gtif", format = "GTiff", overwrite=T)
 
+#air temp 
+awat <- raster::raster("/home/rstudio/DataUTM10/trophic_2019_at.awat_[Universal Kriging].tif")
+raster::projection(awat)
+awat <- raster::projectRaster(awat, crs = utm)
+raster::writeRaster(awat, filename = "/home/rstudio/BC_openSTARS_SSN/DataUTM10/trophic_2019_at.awat [Universal Kriging].tif", format = "GTiff", overwrite=T)
+
+awcv <- raster::raster("/home/rstudio/BC_openSTARS_SSN/DataUTM10/trophic_2019_at.awcoef [Universal Kriging].tif")
+raster::projection(awcv)
+awcv <- raster::projectRaster(awcv, crs = utm)
+raster::writeRaster(awcv, filename = "/home/rstudio/BC_openSTARS_SSN/DataUTM10/trophic_2019_at.awcoef [Universal Kriging].tif", format = "GTiff", overwrite=T)
+
+mwat <- raster::raster("/home/rstudio/BC_openSTARS_SSN/DataUTM10/trophic_2019_at.mwat [Universal Kriging].tif")
+raster::projection(mwat)
+mwat <- raster::projectRaster(mwat, crs = utm)
+raster::writeRaster(mwat, filename = "/home/rstudio/BC_openSTARS_SSN/DataUTM10/trophic_2019_at.mwat [Universal Kriging].tif", format = "GTiff", overwrite=T)
+
+
 
 interp_temp <- raster::raster("DataUTM10/trophic_2020_atawat [Universal Kriging].tif")
 raster::projection(interp_temp)
@@ -164,7 +181,8 @@ library(mapview)
 
 # Workaround create by Seb Dalgnaro to extract Parsnip River
 # using the fwapgr package while it is still in development
-             
+
+      
              
 wshed <- fwa_collection("whse_basemapping.fwa_named_watersheds_poly", 
                                      filter = list(gnis_name = "Anzac River"))
