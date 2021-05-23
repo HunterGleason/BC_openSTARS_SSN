@@ -31,7 +31,6 @@ repeated_meas <- toml$run_openstars$repeated_meas
 if(repeated_meas=='TRUE')
 {
   ssn_vec<-toml$run_openstars$reap_meas_path
-  ssn_vec<-unlist(strsplit(ssn_vec[[1]],','))
 }
 
 
